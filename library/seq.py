@@ -161,6 +161,8 @@ PDISTANCE = 0
 JUKES_CANTOR = 1
 KIMURA_2P = 2
 PDISTANCE_GAPS = 3
+# number of distance options
+NDISTANCES = 4
 
 
 def seq_distances(target: str, query: str) -> np.array:
