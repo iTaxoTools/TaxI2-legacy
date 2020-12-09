@@ -23,11 +23,11 @@ class FileChooser():
     Creates a frame with a label, entry and browse button for choosing files
     """
 
-    def __init__(self, parent: Any, *, label: str, mode: Literal["open", "save"]):
+    def __init__(self, parent: Any, *, label: str, mode: Literal["open", "save"], file_var: Optional[tk.StringVar] = None):
         self.frame = ttk.Frame(parent)
         self.frame.columnconfigure([0, 1], weight=1)
         self.label = ttk.Label(self.frame, text=label)
-        self.file_var = tk.StringVar()
+        self.file_var = file_var if file_var else tk.StringVar()
         self.entry = ttk.Entry(self.frame, textvariable=self.file_var)
         if mode == "open":
             self._dialog = tk.filedialog.askopenfilename
@@ -55,10 +55,10 @@ class LabeledEntry():
     Group of a label, entry and a string variable
     """
 
-    def __init__(self, parent: tk.Misc, *, label: str):
+    def __init__(self, parent: tk.Misc, *, label: str, var: Optional[tk.StringVar] = None):
         self.frame = ttk.Frame(parent)
         self.label = ttk.Label(self.frame, text=label)
-        self.var = tk.StringVar()
+        self.var = var if var else tk.StringVar()
         self.entry = ttk.Entry(self.frame, textvariable=self.var)
         self.frame.columnconfigure(1, weight=1)
         self.label.grid(column=0, row=0)
@@ -71,10 +71,10 @@ class LabeledCombobox():
     Group of a label, Combobox and a string variable
     """
 
-    def __init__(self, parent: tk.Misc, *, label: str, values: List[str], readonly: bool):
+    def __init__(self, parent: tk.Misc, *, label: str, values: List[str], readonly: bool, var: Optional[tk.StringVar] = None):
         self.frame = ttk.Frame(parent)
         self.label = ttk.Label(self.frame, text=label)
-        self.var = tk.StringVar()
+        self.var = var if var else tk.StringVar()
         self.combobox = ttk.Combobox(
             self.frame, textvariable=self.var, values=values)
         if readonly:
