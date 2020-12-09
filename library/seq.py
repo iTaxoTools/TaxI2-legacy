@@ -2,6 +2,7 @@ from typing import Tuple, Optional
 from Bio.Align import PairwiseAligner
 import os
 import math
+import numpy as np
 
 
 with open(os.path.join('data', 'scores.tab')) as scores_file:
@@ -153,3 +154,30 @@ class AlignmentStats():
             return query_start - self._previous_query_end
         else:
             return 0
+
+
+# the constants representing indices to extract corresponding distance from the result of seq_distances
+PDISTANCE = 0
+JUKES_CANTOR = 1
+KIMURA_2P = 2
+PDISTANCE_GAPS = 3
+
+
+def seq_distances(target: str, query: str) -> np.array:
+    """
+    Returns array of 4 floats representing various distance between sequences.
+    Index with constants to extract the distances:
+    PDISTANCE - pairwise uncorrected distance
+    JUKES_CANTOR - pairwise Jukes-Cantor distance
+    KIMURA_2P - pairwise Kimura-2-Parameter distance
+    PDISTANCE_GAPS - pairwise uncorrected distance including gaps
+    """
+    seq_target = Seq(target)
+    seq_query = Seq(query)
+    alignment = seq_target.align(seq_query)
+    stats = AlignmentStats()
+    stats.calculate(alignment, seq_target, seq_query)
+    return np.array([stats.pdistance(), stats.jukes_cantor_distance(), stats.kimura2p_distance(), stats.pdistance_counting_gaps()])
+
+
+seq_distances_ufunc: np.ufunc = np.frompyfunc(seq_distances, 2, 1)
