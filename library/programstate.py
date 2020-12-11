@@ -44,6 +44,13 @@ class ProgramState():
     def input_format(self) -> FileFormat:
         return ProgramState.formats[self.input_format_name.get()]()
 
+    def process(self, input_file: str, output_file: str) -> None:
+        table = self.input_format.load_table(input_file).pivot(
+            index=["seqid", "specimen_voucher", "species"]).squeeze()
+        distance_table = distance_table(table, self.already_aligned.get())
+        distance_table.pipe(select_distance, PDISTANCE).pipe(
+            seqid_distance_table).to_csv(output_file, sep='\t', line_terminator='\n')
+
 
 def distance_table(sequences: pd.Series, already_aligned: bool) -> pd.DataFrame:
     """
@@ -60,3 +67,21 @@ def distance_table(sequences: pd.Series, already_aligned: bool) -> pd.DataFrame:
         distance_array = seq_distances_aligned_ufunc.outer(
             np.asarray(sequences), np.asarray(sequences))
     return pd.DataFrame(distance_array, index=sequences.index, columns=sequences.index)
+
+
+def select_distance(distance_table: pd.DataFrame, kind: int) -> pd.DataFrame:
+    """
+    Transforms table of arrays of distances into the table of distances
+
+    kind should be one of the distance selection constants
+    """
+    if kind >= NDISTANCES:
+        raise ValueError(f"{kind} doesn't corresponds to a valid distance")
+    return distance_table.applymap(lambda arr: arr[kind])
+
+
+def seqid_distance_table(distance_table: pd.DataFrame) -> pd.DataFrame:
+    """
+    Changes the index of the table to only seqid
+    """
+    return distance_table.reindex(index=distance_table.index.get_level_values('seqid'), columns=distance_table.columns.get_level_values('seqid'))
