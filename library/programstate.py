@@ -4,6 +4,9 @@ import tkinter as tk
 import pandas as pd
 import numpy as np
 
+distances_names = ["pairwise uncorrelated distance", "Jukes-Cantor distance",
+                   "Kimura-2-Parameter distance", "pairwise uncorrelated distance counting gaps"]
+
 
 class FileFormat():
     """
@@ -21,7 +24,7 @@ class TabFormat(FileFormat):
 
     def load_table(self, filepath_or_buffer: Union[str, TextIO]) -> pd.DataFrame:
         return pd.read_csv(filepath_or_buffer, sep='\t').rename(
-            columns=str.casefold).rename(columns={'organism': 'species'})['seqid', 'specimen_voucher', 'species']
+            columns=str.casefold).rename(columns={'organism': 'species'})[['seqid', 'specimen_voucher', 'species', 'sequence']]
 
 
 class ProgramState():
@@ -45,14 +48,15 @@ class ProgramState():
         return ProgramState.formats[self.input_format_name.get()]()
 
     def process(self, input_file: str, output_file: str) -> None:
-        table = self.input_format.load_table(input_file).pivot(
-            index=["seqid", "specimen_voucher", "species"]).squeeze()
-        distance_table = distance_table(table, self.already_aligned.get())
+        table = self.input_format.load_table(input_file).set_index(
+            ["seqid", "specimen_voucher", "species"]).squeeze()
+        print(table)
+        distance_table = make_distance_table(table, self.already_aligned.get())
         distance_table.pipe(select_distance, PDISTANCE).pipe(
             seqid_distance_table).to_csv(output_file, sep='\t', line_terminator='\n')
 
 
-def distance_table(sequences: pd.Series, already_aligned: bool) -> pd.DataFrame:
+def make_distance_table(sequences: pd.Series, already_aligned: bool) -> pd.DataFrame:
     """
     Takes a series of sequences with a multi-index and returns a square dataframe
 
@@ -84,4 +88,7 @@ def seqid_distance_table(distance_table: pd.DataFrame) -> pd.DataFrame:
     """
     Changes the index of the table to only seqid
     """
-    return distance_table.reindex(index=distance_table.index.get_level_values('seqid'), columns=distance_table.columns.get_level_values('seqid'))
+    result = distance_table.copy()
+    result.index = distance_table.index.get_level_values('seqid')
+    result.columns = distance_table.columns.get_level_values('seqid')
+    return result

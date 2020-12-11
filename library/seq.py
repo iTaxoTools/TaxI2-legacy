@@ -126,7 +126,7 @@ class AlignmentStats():
 
     def update_transitions_and_transversions(self, frag: Fragment, target: str, query: str) -> None:
         (target_frag, query_frag) = frag
-        for pair in zip(target[slice(target_frag)], query[slice(query_frag)]):
+        for pair in zip(target[slice(*target_frag)], query[slice(*query_frag)]):
             if pair[0] == pair[0]:
                 continue
             else:

@@ -184,5 +184,5 @@ def display_errors_and_warnings() -> Any:
                 tk.messagebox.showwarning("Warning", str(w.message))
     except FileNotFoundError as ex:
         tk.messagebox.showerror("Error", ex.strerror)
-    # except Exception as ex:
-    #     tk.messagebox.showerror("Error", str(ex))
+    except Exception as ex:
+        tk.messagebox.showerror("Error", str(ex))
