@@ -1,4 +1,6 @@
 from typing import Union, TextIO
+from library.fasta import Fastafile
+from library.record import Record
 from library.seq import PDISTANCE, JUKES_CANTOR, KIMURA_2P, PDISTANCE_GAPS, NDISTANCES, seq_distances_ufunc, seq_distances_aligned_ufunc
 import tkinter as tk
 import pandas as pd
@@ -31,13 +33,31 @@ class TabFormat(FileFormat):
                 "'seqid', 'specimen_voucher', 'species' or 'organism', or 'sequence' column is missing") from ex
 
 
+class FastaFormat(FileFormat):
+    """
+    Format for fasta files
+    """
+
+    def load_table(self, filepath_or_buffer: Union[str, TextIO]) -> pd.DataFrame:
+        if isinstance(filepath_or_buffer, str):
+            with open(filepath_or_buffer) as infile:
+                return self._load_table(infile)
+        else:
+            return self._load_table(infile)
+
+    def _load_table(self, file: TextIO) -> pd.DataFrame:
+        _, records = Fastafile.read(file)
+        return pd.DataFrame(([record['seqid'], record['sequence']] for record in records()), columns=['seqid', 'sequence'])
+
+
 class ProgramState():
     """
     Encapsulates the state of TaxI2
     """
 
     formats = dict(
-        Tabfile=TabFormat
+        Tabfile=TabFormat,
+        Fasta=FastaFormat
     )
 
     def __init__(self, root: tk.Tk) -> None:
