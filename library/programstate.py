@@ -53,9 +53,9 @@ class ProgramState():
                 ["seqid", "specimen_voucher", "species"]).squeeze()
             distance_table = make_distance_table(
                 table, self.already_aligned.get())
-            for kind in range(NDISTANCES):
+            for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
                 print(
-                    f"{distances_names[kind].capitalize()} between sequences", file=outfile)
+                    f"{distances_names[kind]} between sequences", file=outfile)
                 distance_table.pipe(select_distance, kind).pipe(
                     seqid_distance_table).to_csv(outfile, sep='\t', line_terminator='\n', float_format="%.4g")
                 outfile.write('\n')
