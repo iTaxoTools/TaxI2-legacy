@@ -176,13 +176,17 @@ class FileListChooser():
 
 
 @contextmanager
-def display_errors_and_warnings() -> Any:
+def display_errors_and_warnings(debug: bool) -> Any:
     try:
         with warnings.catch_warnings(record=True) as warns:
             yield
             for w in warns:
                 tk.messagebox.showwarning("Warning", str(w.message))
     except FileNotFoundError as ex:
+        if debug:
+            raise
         tk.messagebox.showerror("Error", ex.strerror)
     except Exception as ex:
+        if debug:
+            raise
         tk.messagebox.showerror("Error", str(ex))
