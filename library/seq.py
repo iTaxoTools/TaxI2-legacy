@@ -95,12 +95,18 @@ class AlignmentStats():
 
     def jukes_cantor_distance(self) -> float:
         p = self.substitions / self.common_length
-        return - (3 / 4) * math.log(1 - (4 / 3) * p)
+        try:
+            return - (3 / 4) * math.log(1 - (4 / 3) * p)
+        except ValueError:
+            return float('inf')
 
     def kimura2p_distance(self) -> float:
         p = self.transitions / self.common_length
         q = self.transversions / self.common_length
-        return - (1 / 2) * math.log((1 - 2 * p - q) * math.sqrt(1 - 2 * q))
+        try:
+            return - (1 / 2) * math.log((1 - 2 * p - q) * math.sqrt(1 - 2 * q))
+        except ValueError:
+            return float('inf')
 
     def update(self, frag: Fragment, target: str, query: str) -> None:
         self.update_total_length(frag)
