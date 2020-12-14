@@ -48,11 +48,17 @@ class ProgramState():
         return ProgramState.formats[self.input_format_name.get()]()
 
     def process(self, input_file: str, output_file: str) -> None:
-        table = self.input_format.load_table(input_file).set_index(
-            ["seqid", "specimen_voucher", "species"]).squeeze()
-        distance_table = make_distance_table(table, self.already_aligned.get())
-        distance_table.pipe(select_distance, PDISTANCE).pipe(
-            seqid_distance_table).to_csv(output_file, sep='\t', line_terminator='\n')
+        with open(output_file, "w") as outfile:
+            table = self.input_format.load_table(input_file).set_index(
+                ["seqid", "specimen_voucher", "species"]).squeeze()
+            distance_table = make_distance_table(
+                table, self.already_aligned.get())
+            for kind in range(NDISTANCES):
+                print(
+                    f"{distances_names[kind].capitalize()} between sequences", file=outfile)
+                distance_table.pipe(select_distance, kind).pipe(
+                    seqid_distance_table).to_csv(outfile, sep='\t', line_terminator='\n', float_format="%.4g")
+                outfile.write('\n')
 
 
 def make_distance_table(sequences: pd.Series, already_aligned: bool) -> pd.DataFrame:
