@@ -50,7 +50,6 @@ class ProgramState():
     def process(self, input_file: str, output_file: str) -> None:
         table = self.input_format.load_table(input_file).set_index(
             ["seqid", "specimen_voucher", "species"]).squeeze()
-        print(table)
         distance_table = make_distance_table(table, self.already_aligned.get())
         distance_table.pipe(select_distance, PDISTANCE).pipe(
             seqid_distance_table).to_csv(output_file, sep='\t', line_terminator='\n')
