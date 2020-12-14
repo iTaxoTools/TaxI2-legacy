@@ -1,0 +1,6 @@
+gap penalty	-100
+gap extend penalty	-10
+end gap penalty	-2
+end gap extend penalty	-1
+match score	1
+mismatch score	-1
