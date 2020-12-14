@@ -23,8 +23,12 @@ class TabFormat(FileFormat):
     """
 
     def load_table(self, filepath_or_buffer: Union[str, TextIO]) -> pd.DataFrame:
-        return pd.read_csv(filepath_or_buffer, sep='\t').rename(
-            columns=str.casefold).rename(columns={'organism': 'species'})[['seqid', 'specimen_voucher', 'species', 'sequence']]
+        try:
+            return pd.read_csv(filepath_or_buffer, sep='\t').rename(
+                columns=str.casefold).rename(columns={'organism': 'species'})[['seqid', 'specimen_voucher', 'species', 'sequence']]
+        except KeyError as ex:
+            raise ValueError(
+                "'seqid', 'specimen_voucher', 'species' or 'organism', or 'sequence' column is missing") from ex
 
 
 class ProgramState():
