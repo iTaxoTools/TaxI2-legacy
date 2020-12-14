@@ -53,10 +53,14 @@ class ProgramState():
 
     def process(self, input_file: str, output_file: str) -> None:
         with open(output_file, "w") as outfile:
-            table = self.input_format.load_table(input_file).set_index(
-                ["seqid", "specimen_voucher", "species"]).squeeze()
+            table = self.input_format.load_table(input_file)
+            sequences = table.set_index(
+                [column for column in table.columns if column != 'sequence']).squeeze()
+            if not isinstance(sequences, pd.Series):
+                raise ValueError(
+                    "Extracting sequence from the table failed for some reason")
             distance_table = make_distance_table(
-                table, self.already_aligned.get())
+                sequences, self.already_aligned.get())
             for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
                 print(
                     f"{distances_names[kind]} between sequences", file=outfile)
