@@ -50,9 +50,11 @@ def gui_main(debug: bool) -> None:
 
 
 def main() -> None:
-    if len(sys.argv) >= 2 and sys.argv[1] == "debug":
+    if "debug" in sys.argv:
+        np.seterr(all='raise')
         gui_main(debug=True)
     else:
+        np.seterr(all='ignore')
         gui_main(debug=False)
 
 
