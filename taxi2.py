@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
+import sys
 from library.gui_utils import *
 from library.programstate import *
 
 
-def gui_main() -> None:
+def gui_main(debug: bool) -> None:
     root = tk.Tk()
     root.rowconfigure(0, weight=1)
     root.columnconfigure(0, weight=1)
@@ -29,7 +30,7 @@ def gui_main() -> None:
         ProgramState.formats.keys()), readonly=True, var=programstate.input_format_name)
 
     def process() -> None:
-        with display_errors_and_warnings():
+        with display_errors_and_warnings(debug):
             programstate.process(
                 input_file_chooser.file_var.get(), output_file_chooser.file_var.get())
             tk.messagebox.showinfo("Done", "Calculation complete.")
@@ -49,7 +50,10 @@ def gui_main() -> None:
 
 
 def main() -> None:
-    gui_main()
+    if len(sys.argv) >= 2 and sys.argv[1] == "debug":
+        gui_main(debug=True)
+    else:
+        gui_main(debug=False)
 
 
 if __name__ == "__main__":
