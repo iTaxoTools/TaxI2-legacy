@@ -1,5 +1,6 @@
 from typing import Union, TextIO
 from library.fasta import Fastafile
+from library.genbank import GenbankFile
 from library.record import Record
 from library.seq import PDISTANCE, JUKES_CANTOR, KIMURA_2P, PDISTANCE_GAPS, NDISTANCES, seq_distances_ufunc, seq_distances_aligned_ufunc
 import tkinter as tk
@@ -50,6 +51,26 @@ class FastaFormat(FileFormat):
         return pd.DataFrame(([record['seqid'], record['sequence']] for record in records()), columns=['seqid', 'sequence'])
 
 
+class GenbankFormat(FileFormat):
+    """
+    Format for fasta files
+    """
+
+    def load_table(self, filepath_or_buffer: Union[str, TextIO]) -> pd.DataFrame:
+        if isinstance(filepath_or_buffer, str):
+            with open(filepath_or_buffer) as infile:
+                return self._load_table(infile)
+        else:
+            return self._load_table(infile)
+
+    def _load_table(self, file: TextIO) -> pd.DataFrame:
+        _, records = GenbankFile.read(file)
+        try:
+            return pd.DataFrame((record._fields for record in records())).rename(columns=str.casefold).rename(columns={'organism': 'species'})[['seqid', 'specimen_voucher', 'species', 'sequence']]
+        except KeyError as ex:
+            raise ValueError(f"{str(ex)} is missing") from ex
+
+
 class ProgramState():
     """
     Encapsulates the state of TaxI2
@@ -57,7 +78,8 @@ class ProgramState():
 
     formats = dict(
         Tabfile=TabFormat,
-        Fasta=FastaFormat
+        Fasta=FastaFormat,
+        Genbank=GenbankFormat
     )
 
     def __init__(self, root: tk.Tk) -> None:
@@ -72,6 +94,9 @@ class ProgramState():
         return ProgramState.formats[self.input_format_name.get()]()
 
     def process(self, input_file: str, output_file: str) -> None:
+        if self.input_format_name.get() == "Genbank" and self.already_aligned.get():
+            raise ValueError(
+                "'Already aligned' option is not allowed for the Genbank format.")
         with open(output_file, "w") as outfile:
             table = self.input_format.load_table(input_file)
             sequences = table.set_index(
