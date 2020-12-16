@@ -101,6 +101,7 @@ class ProgramState():
             table = self.input_format.load_table(input_file)
             sequences = table.set_index(
                 [column for column in table.columns if column != 'sequence']).squeeze()
+            sequences = normalize_sequences(sequences)
             if not isinstance(sequences, pd.Series):
                 raise ValueError(
                     "Extracting sequence from the table failed for some reason")
@@ -150,3 +151,7 @@ def seqid_distance_table(distance_table: pd.DataFrame) -> pd.DataFrame:
     result.index = distance_table.index.get_level_values('seqid')
     result.columns = distance_table.columns.get_level_values('seqid')
     return result
+
+
+def normalize_sequences(sequences: pd.Series) -> pd.Series:
+    return sequences.str.upper().str.replace("?", "N").str.replace("-", "")
