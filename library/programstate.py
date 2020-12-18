@@ -109,6 +109,11 @@ class ProgramState():
         distance_table = make_distance_table(
             sequences, self.already_aligned.get())
         with open(output_file, "w") as outfile:
+            print(f"Most similar sequences", file=outfile)
+            table_closest(distance_table).to_csv(
+                outfile, sep='\t', line_terminator='\n', float_format="%.4g")
+            outfile.write('\n')
+
             for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
                 print(
                     f"{distances_names[kind]} between sequences", file=outfile)
@@ -116,9 +121,6 @@ class ProgramState():
                     seqid_distance_table).to_csv(outfile, sep='\t', line_terminator='\n', float_format="%.4g")
                 outfile.write('\n')
 
-            print(f"Most similar sequences", file=outfile)
-            table_closest(distance_table).to_csv(
-                outfile, sep='\t', line_terminator='\n', float_format="%.4g")
         if self.print_alignments.get():
             with open(alignment_file_name(output_file), "w") as alignment_file:
                 print_alignments(sequences, alignment_file)
