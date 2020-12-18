@@ -1,4 +1,4 @@
-from typing import Union, TextIO
+from typing import Union, TextIO, Iterator, Tuple, Any
 from library.fasta import Fastafile
 from library.genbank import GenbankFile
 from library.record import Record
@@ -115,6 +115,10 @@ class ProgramState():
                 distance_table.pipe(select_distance, kind).pipe(
                     seqid_distance_table).to_csv(outfile, sep='\t', line_terminator='\n', float_format="%.4g")
                 outfile.write('\n')
+
+            print(f"Most similar sequences", file=outfile)
+            table_closest(distance_table).to_csv(
+                outfile, sep='\t', line_terminator='\n', float_format="%.4g")
         if self.print_alignments.get():
             with open(alignment_file_name(output_file), "w") as alignment_file:
                 print_alignments(sequences, alignment_file)
@@ -175,3 +179,18 @@ def print_alignments(sequences: pd.Series, alignment_file: TextIO) -> None:
             print(f"{seqid_target} <-> {seqid_query}", file=alignment_file)
             alignment = aligner.align(target, query)[0]
             print(alignment, file=alignment_file)
+
+
+def table_closest(distance_table: pd.DataFrame) -> pd.DataFrame:
+    columns = tuple(map(lambda s: s + " (most similar sequence in the dataset)", distance_table.index.names)
+                    ) + ("p-distance", "JC-distance", "K2P-distance", "p-distance with gaps")
+    index_rename = {name: (name + " (query)")
+                    for name in distance_table.index.names}
+    return pd.DataFrame(iterate_closest(distance_table), index=distance_table.index, columns=columns).reset_index().rename(columns=index_rename)
+
+
+def iterate_closest(distance_table: pd.DataFrame) -> Iterator[Tuple[Any]]:
+    for column in distance_table.columns:
+        idx = distance_table[column].drop(labels=column).map(
+            lambda arr: arr[PDISTANCE]).idxmin()
+        yield idx + tuple(distance_table.loc[(column, idx)])
