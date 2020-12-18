@@ -181,6 +181,8 @@ def seq_distances(target: str, query: str) -> np.array:
     KIMURA_2P - pairwise Kimura-2-Parameter distance
     PDISTANCE_GAPS - pairwise uncorrected distance including gaps
     """
+    if not target or not query:
+        return np.full(4, np.nan)
     seq_target = Seq(target)
     seq_query = Seq(query)
     alignment = seq_target.align(seq_query)
@@ -201,6 +203,8 @@ def seq_distance_aligned(target: str, query: str) -> np.array:
 
     Expects aligned sequences
     """
+    if not target or not query:
+        return np.full(4, np.nan)
     seq_target = Seq(target)
     seq_query = Seq(query)
     alignment = Alignment.already_aligned(seq_target)

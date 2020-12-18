@@ -29,6 +29,9 @@ def gui_main(debug: bool) -> None:
     format_chooser = LabeledCombobox(root, label="Input file format", values=list(
         ProgramState.formats.keys()), readonly=True, var=programstate.input_format_name)
 
+    print_alignments_chk = ttk.Checkbutton(
+        root, variable=programstate.print_alignments, text="Print alignments")
+
     def process() -> None:
         with display_errors_and_warnings(debug):
             programstate.process(
@@ -45,14 +48,17 @@ def gui_main(debug: bool) -> None:
 
     process_btn.grid(row=3, column=1)
     aligned_chk.grid(row=3, column=2)
+    print_alignments_chk.grid(row=4, column=2)
 
     root.mainloop()
 
 
 def main() -> None:
-    if len(sys.argv) >= 2 and sys.argv[1] == "debug":
+    if "debug" in sys.argv:
+        np.seterr(all='raise')
         gui_main(debug=True)
     else:
+        np.seterr(all='ignore')
         gui_main(debug=False)
 
 
