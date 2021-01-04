@@ -140,6 +140,38 @@ class ProgramState():
                         species_distance_table).sort_index(level=['species', 'seqid']).sort_index(axis='columns', level=['species', 'seqid']).to_csv(outfile, sep='\t', line_terminator='\n', float_format="%.4g")
                     outfile.write('\n')
 
+                # The matrices of distances between species
+                for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
+                    mean_distances = distance_table.pipe(select_distance, kind).groupby(level='species').mean(
+                    ).groupby(axis=1, level=2).mean().sort_index().sort_index(axis='columns')
+                    min_distances = distance_table.pipe(select_distance, kind).groupby(level='species').min(
+                    ).groupby(axis=1, level=2).min().sort_index().sort_index(axis='columns')
+                    max_distances = distance_table.pipe(select_distance, kind).groupby(level='species').max(
+                    ).groupby(axis=1, level=2).max().sort_index().sort_index(axis='columns')
+
+                    species_distances = mean_distances.applymap(lambda mean: (mean,)).combine(
+                        min_distances, series_append).combine(max_distances, series_append)
+
+                    print(species_distances)
+
+                    print(
+                        f"Mean {distances_names[kind]} between species", file=outfile)
+                    species_distances.applymap(lambda mean_min_max: mean_min_max[0]).to_csv(
+                        outfile, sep='\t', line_terminator='\n', float_format="%.4g")
+                    outfile.write('\n')
+
+                    print(
+                        f"Minimum and maximum {distances_names[kind]} between species", file=outfile)
+                    species_distances.applymap(lambda mean_min_max: f"{mean_min_max[1]:.4g}-{mean_min_max[2]:.4g}").to_csv(
+                        outfile, sep='\t', line_terminator='\n', float_format="%.4g")
+                    outfile.write('\n')
+
+                    print(
+                        f"Mean, minimum and maximum {distances_names[kind]} between species", file=outfile)
+                    species_distances.applymap(lambda mean_min_max: f"{mean_min_max[0]:.4g} ({mean_min_max[1]:.4g}-{mean_min_max[2]:.4g})").to_csv(
+                        outfile, sep='\t', line_terminator='\n', float_format="%.4g")
+                    outfile.write('\n')
+
         if self.print_alignments.get():
             with open(alignment_file_name(output_file), "w") as alignment_file:
                 print_alignments(sequences, alignment_file)
@@ -227,3 +259,10 @@ def iterate_closest(distance_table: pd.DataFrame) -> Iterator[Tuple[Any]]:
         idx = distance_table[column].drop(labels=column).map(
             lambda arr: arr[PDISTANCE]).idxmin()
         yield idx + tuple(distance_table.loc[(column, idx)])
+
+
+def series_append(series_tuple: pd.Series, series_elem: pd.Series) -> pd.Series:
+    """
+    Combines a Series of tuples with a Series of scalars by appending componentwise
+    """
+    return series_tuple.combine(series_elem, lambda tuple, elem: tuple + (elem,))
