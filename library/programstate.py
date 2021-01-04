@@ -115,7 +115,7 @@ class ProgramState():
                 outfile, sep='\t', line_terminator='\n', float_format="%.4g")
             outfile.write('\n')
 
-            # The matrix of distance between seqids (input order)
+            # The matrix of distances between seqids (input order)
             for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
                 print(
                     f"{distances_names[kind]} between sequences", file=outfile)
@@ -123,13 +123,22 @@ class ProgramState():
                     seqid_distance_table).to_csv(outfile, sep='\t', line_terminator='\n', float_format="%.4g")
                 outfile.write('\n')
 
-            # The matrix of distance between seqids (alphabetical order)
+            # The matrix of distances between seqids (alphabetical order)
             for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
                 print(
                     f"{distances_names[kind]} between sequences (Alphabetical order)", file=outfile)
                 distance_table.pipe(select_distance, kind).pipe(
                     seqid_distance_table).sort_index().sort_index(axis='columns').to_csv(outfile, sep='\t', line_terminator='\n', float_format="%.4g")
                 outfile.write('\n')
+
+            if 'species' in distance_table.index.names:
+                # The matrix of distances between seqids (order by species)
+                for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
+                    print(
+                        f"{distances_names[kind]} between sequences (Ordered by species)", file=outfile)
+                    distance_table.pipe(select_distance, kind).pipe(
+                        species_distance_table).sort_index(level=['species', 'seqid']).sort_index(axis='columns', level=['species', 'seqid']).to_csv(outfile, sep='\t', line_terminator='\n', float_format="%.4g")
+                    outfile.write('\n')
 
         if self.print_alignments.get():
             with open(alignment_file_name(output_file), "w") as alignment_file:
@@ -171,6 +180,18 @@ def seqid_distance_table(distance_table: pd.DataFrame) -> pd.DataFrame:
     result = distance_table.copy()
     result.index = distance_table.index.get_level_values('seqid')
     result.columns = distance_table.columns.get_level_values('seqid')
+    return result
+
+
+def species_distance_table(distance_table: pd.DataFrame) -> pd.DataFrame:
+    """
+    Changes the index of the table to seqid and species
+    """
+    result = distance_table.copy()
+    to_drop = [level for level in result.index.names if level not in {
+        'seqid', 'species'}]
+    result.index = result.index.droplevel(to_drop)
+    result.columns = result.columns.droplevel(to_drop)
     return result
 
 
