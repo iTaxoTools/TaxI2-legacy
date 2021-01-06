@@ -142,12 +142,14 @@ class ProgramState():
 
                 # The matrices of distances between species
                 for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
-                    mean_distances = distance_table.pipe(select_distance, kind).groupby(level='species').mean(
-                    ).groupby(axis=1, level=2).mean().sort_index().sort_index(axis='columns')
-                    min_distances = distance_table.pipe(select_distance, kind).groupby(level='species').min(
-                    ).groupby(axis=1, level=2).min().sort_index().sort_index(axis='columns')
-                    max_distances = distance_table.pipe(select_distance, kind).groupby(level='species').max(
-                    ).groupby(axis=1, level=2).max().sort_index().sort_index(axis='columns')
+                    this_distance_table = distance_table.pipe(
+                        select_distance, kind).pipe(species_distance_table)
+                    mean_distances = this_distance_table.groupby(level='species').mean(
+                    ).groupby(axis=1, level='species').mean().sort_index().sort_index(axis='columns')
+                    min_distances = this_distance_table.groupby(level='species').min(
+                    ).groupby(axis=1, level='species').min().sort_index().sort_index(axis='columns')
+                    max_distances = this_distance_table.groupby(level='species').max(
+                    ).groupby(axis=1, level='species').max().sort_index().sort_index(axis='columns')
 
                     species_distances = mean_distances.applymap(lambda mean: (mean,)).combine(
                         min_distances, series_append).combine(max_distances, series_append)
@@ -168,6 +170,28 @@ class ProgramState():
                         f"Mean, minimum and maximum {distances_names[kind]} between species", file=outfile)
                     species_distances.applymap(show_mean_min_max).to_csv(
                         outfile, sep='\t', line_terminator='\n', float_format="%.4g")
+                    outfile.write('\n')
+
+                    print(
+                        f"Mean, minimum and maximum intra-species {distances_names[kind]}", file=outfile)
+                    for species in mean_distances.index:
+                        mean_distances.to_pickle("table.pkl")
+                        mean_min_max = (
+                            mean_distances.at[species, species], min_distances.at[species, species], max_distances.at[species, species])
+                        print(
+                            f"{species}\t{show_mean_min_max(mean_min_max)}", file=outfile)
+                    outfile.write('\n')
+
+                    print(
+                        f"Closest sequence from different species with {distances_names[kind]}", file=outfile)
+                    print(
+                        "species\tdistance (closest sequence of different species)\tseqid (closest sequence of different species)", file=outfile)
+                    for species, idxmin in find_closest_from_another(this_distance_table).items():
+                        other_seqid, other_species, seqid_self = idxmin
+                        distance = this_distance_table.at[(
+                            seqid_self, species), (other_seqid, other_species)]
+                        print(species, f"{distance:.4g}", other_seqid,
+                              sep='\t', file=outfile)
                     outfile.write('\n')
 
         if self.print_alignments.get():
@@ -280,3 +304,14 @@ def show_mean_min_max(mean_min_max: Tuple[float, float, float]) -> str:
         return ""
     else:
         return f"{mean_min_max[0]:.4g} ({mean_min_max[1]:.4g}-{mean_min_max[2]:.4g})"
+
+
+def find_closest_from_another(table: pd.DataFrame) -> pd.Series:
+    """
+    Returns as Series of tuples:
+    species | (seqid_of_closest, species_of_closest, seqid_of_self)
+    """
+    table = table.copy()
+    for lbl in table.index.levels[1]:
+        table.loc[(slice(None), lbl), (slice(None), lbl)] = np.nan
+    return table.stack(level=0).idxmin()
