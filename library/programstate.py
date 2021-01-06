@@ -152,8 +152,6 @@ class ProgramState():
                     species_distances = mean_distances.applymap(lambda mean: (mean,)).combine(
                         min_distances, series_append).combine(max_distances, series_append)
 
-                    print(species_distances)
-
                     print(
                         f"Mean {distances_names[kind]} between species", file=outfile)
                     species_distances.applymap(lambda mean_min_max: mean_min_max[0]).to_csv(
@@ -162,13 +160,13 @@ class ProgramState():
 
                     print(
                         f"Minimum and maximum {distances_names[kind]} between species", file=outfile)
-                    species_distances.applymap(lambda mean_min_max: f"{mean_min_max[1]:.4g}-{mean_min_max[2]:.4g}").to_csv(
+                    species_distances.applymap(show_min_max).to_csv(
                         outfile, sep='\t', line_terminator='\n', float_format="%.4g")
                     outfile.write('\n')
 
                     print(
                         f"Mean, minimum and maximum {distances_names[kind]} between species", file=outfile)
-                    species_distances.applymap(lambda mean_min_max: f"{mean_min_max[0]:.4g} ({mean_min_max[1]:.4g}-{mean_min_max[2]:.4g})").to_csv(
+                    species_distances.applymap(show_mean_min_max).to_csv(
                         outfile, sep='\t', line_terminator='\n', float_format="%.4g")
                     outfile.write('\n')
 
@@ -191,6 +189,8 @@ def make_distance_table(sequences: pd.Series, already_aligned: bool) -> pd.DataF
     else:
         distance_array = seq_distances_aligned_ufunc.outer(
             np.asarray(sequences), np.asarray(sequences))
+    for i in range(len(sequences)):
+        distance_array[(i, i)] = np.full(NDISTANCES, np.nan)
     return pd.DataFrame(distance_array, index=sequences.index, columns=sequences.index)
 
 
@@ -266,3 +266,17 @@ def series_append(series_tuple: pd.Series, series_elem: pd.Series) -> pd.Series:
     Combines a Series of tuples with a Series of scalars by appending componentwise
     """
     return series_tuple.combine(series_elem, lambda tuple, elem: tuple + (elem,))
+
+
+def show_min_max(mean_min_max: Tuple[float, float, float]) -> str:
+    if np.isnan(mean_min_max[0]):
+        return ""
+    else:
+        return f"{mean_min_max[1]:.4g}-{mean_min_max[2]:.4g}"
+
+
+def show_mean_min_max(mean_min_max: Tuple[float, float, float]) -> str:
+    if np.isnan(mean_min_max[0]):
+        return ""
+    else:
+        return f"{mean_min_max[0]:.4g} ({mean_min_max[1]:.4g}-{mean_min_max[2]:.4g})"
