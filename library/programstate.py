@@ -7,6 +7,7 @@ import tkinter as tk
 import pandas as pd
 import numpy as np
 import os
+import re
 
 distances_names = ["pairwise uncorrelated distance", "Jukes-Cantor distance",
                    "Kimura-2-Parameter distance", "pairwise uncorrelated distance counting gaps"]
@@ -175,7 +176,6 @@ class ProgramState():
                     print(
                         f"Mean, minimum and maximum intra-species {distances_names[kind]}", file=outfile)
                     for species in mean_distances.index:
-                        mean_distances.to_pickle("table.pkl")
                         mean_min_max = (
                             mean_distances.at[species, species], min_distances.at[species, species], max_distances.at[species, species])
                         print(
@@ -192,6 +192,31 @@ class ProgramState():
                             seqid_self, species), (other_seqid, other_species)]
                         print(species, f"{distance:.4g}", other_seqid,
                               sep='\t', file=outfile)
+                    outfile.write('\n')
+
+                    mean_distances_genera = mean_distances.groupby(select_genus).mean().groupby(
+                        select_genus, axis=1).mean().sort_index().sort_index(axis=1)
+                    min_distances_genera = min_distances.groupby(select_genus).min().groupby(
+                        select_genus, axis=1).min().sort_index().sort_index(axis=1)
+                    max_distances_genera = max_distances.groupby(select_genus).max().groupby(
+                        select_genus, axis=1).max().sort_index().sort_index(axis=1)
+
+                    genera_distances = mean_distances_genera.applymap(lambda mean: (mean,)).combine(
+                        min_distances_genera, series_append).combine(max_distances_genera, series_append)
+
+                    print(
+                        f"Mean, minimum and maximum {distances_names[kind]} between genera", file=outfile)
+                    genera_distances.applymap(show_mean_min_max).to_csv(
+                        outfile, sep='\t', line_terminator='\n', float_format="%.4g")
+                    outfile.write('\n')
+
+                    print(
+                        f"Mean, minimum and maximum intra-species {distances_names[kind]}", file=outfile)
+                    for species in mean_distances.index:
+                        mean_min_max = (
+                            mean_distances.at[species, species], min_distances.at[species, species], max_distances.at[species, species])
+                        print(
+                            f"{species}\t{show_mean_min_max(mean_min_max)}", file=outfile)
                     outfile.write('\n')
 
         if self.print_alignments.get():
@@ -315,3 +340,8 @@ def find_closest_from_another(table: pd.DataFrame) -> pd.Series:
     for lbl in table.index.levels[1]:
         table.loc[(slice(None), lbl), (slice(None), lbl)] = np.nan
     return table.stack(level=0).idxmin()
+
+
+def select_genus(species: str) -> str:
+    genus, _ = re.split(r'[ _]', species, maxsplit=1)
+    return genus
