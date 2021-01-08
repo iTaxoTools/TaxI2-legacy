@@ -11,6 +11,8 @@ import re
 
 distances_names = ["pairwise uncorrelated distance", "Jukes-Cantor distance",
                    "Kimura-2-Parameter distance", "pairwise uncorrelated distance counting gaps"]
+distances_short_names = ['p-distance', 'JC distance',
+                         'K2P distance', 'p-distance with gaps']
 
 
 class FileFormat():
@@ -29,7 +31,7 @@ class TabFormat(FileFormat):
 
     def load_table(self, filepath_or_buffer: Union[str, TextIO]) -> pd.DataFrame:
         try:
-            return pd.read_csv(filepath_or_buffer, sep='\t').rename(
+            return pd.read_csv(filepath_or_buffer, sep='\t', dtype=str).rename(
                 columns=str.casefold).rename(columns={'organism': 'species'})[['seqid', 'specimen_voucher', 'species', 'sequence']]
         except KeyError as ex:
             raise ValueError(
@@ -210,14 +212,50 @@ class ProgramState():
                         outfile, sep='\t', line_terminator='\n', float_format="%.4g")
                     outfile.write('\n')
 
-                    print(
-                        f"Mean, minimum and maximum intra-species {distances_names[kind]}", file=outfile)
-                    for species in mean_distances.index:
-                        mean_min_max = (
-                            mean_distances.at[species, species], min_distances.at[species, species], max_distances.at[species, species])
-                        print(
-                            f"{species}\t{show_mean_min_max(mean_min_max)}", file=outfile)
-                    outfile.write('\n')
+                distance_table.index.names = map(
+                    lambda s: s + ' (query 1)', distance_table.index.names)
+                distance_table.columns.names = map(
+                    lambda s: s + ' (query 2)', distance_table.columns.names)
+                distance_table = distance_table.stack(
+                    distance_table.columns.names)
+                distance_table = distance_table.reset_index(name='distances')
+
+                distance_table[['genus (query 1)', 'species (query 1)']] = distance_table['species (query 1)'].str.split(
+                    r' |_', expand=True, n=1)
+                genus1_pos = distance_table.columns.get_loc(
+                    'species (query 1)')
+                distance_table.insert(
+                    genus1_pos, 'genus (query 1)', distance_table.pop('genus (query 1)'))
+                distance_table[['genus (query 2)', 'species (query 2)']] = distance_table['species (query 2)'].str.split(
+                    r' |_', expand=True, n=1)
+                genus2_pos = distance_table.columns.get_loc(
+                    'species (query 2)')
+                distance_table.insert(
+                    genus2_pos, 'genus (query 2)', distance_table.pop('genus (query 2)'))
+                for kind in range(NDISTANCES):
+                    distance_table[distances_short_names[kind]] = distance_table['distances'].map(
+                        lambda arr: arr[kind])
+                distance_table.pop('distances')
+                distance_table = distance_table.loc[distance_table['seqid (query 1)']
+                                                    != distance_table['seqid (query 2)']]
+                same_species = distance_table['species (query 1)'] == distance_table['species (query 2)']
+                same_genus = distance_table['genus (query 1)'] == distance_table['genus (query 2)']
+
+                def comparison_type(same_species: bool, same_genus: bool) -> str:
+                    if same_genus:
+                        if same_species:
+                            return 'intra-species'
+                        else:
+                            return 'inter-species'
+                    else:
+                        return 'inter-genus'
+                comparison_type_pos = int((
+                    len(distance_table.columns) - NDISTANCES) / 2)
+                distance_table.insert(comparison_type_pos, 'comparison_type', same_species.combine(
+                    same_genus, comparison_type))
+
+                distance_table.to_csv(
+                    outfile, sep='\t', index=False, line_terminator='\n')
 
         if self.print_alignments.get():
             with open(alignment_file_name(output_file), "w") as alignment_file:
@@ -240,7 +278,7 @@ def make_distance_table(sequences: pd.Series, already_aligned: bool) -> pd.DataF
             np.asarray(sequences), np.asarray(sequences))
     for i in range(len(sequences)):
         distance_array[(i, i)] = np.full(NDISTANCES, np.nan)
-    return pd.DataFrame(distance_array, index=sequences.index, columns=sequences.index)
+    return pd.DataFrame(distance_array, index=sequences.index.copy(), columns=sequences.index)
 
 
 def select_distance(distance_table: pd.DataFrame, kind: int) -> pd.DataFrame:
