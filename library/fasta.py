@@ -1,7 +1,5 @@
-import re
-import warnings
 from library.record import *
-from typing import TextIO, Iterator, List, Generator, Tuple, Set, Callable
+from typing import TextIO, Iterator, List, Tuple, Callable
 
 
 def split_file(file: TextIO) -> Iterator[List[str]]:

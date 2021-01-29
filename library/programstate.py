@@ -1,8 +1,7 @@
 from typing import Union, TextIO, Iterator, Tuple, Any
 from library.fasta import Fastafile
 from library.genbank import GenbankFile
-from library.record import Record
-from library.seq import PDISTANCE, JUKES_CANTOR, KIMURA_2P, PDISTANCE_GAPS, NDISTANCES, seq_distances_ufunc, seq_distances_aligned_ufunc, aligner
+from library.seq import PDISTANCE, NDISTANCES, seq_distances_ufunc, seq_distances_aligned_ufunc, aligner
 import tkinter as tk
 import pandas as pd
 import numpy as np
@@ -48,7 +47,7 @@ class FastaFormat(FileFormat):
             with open(filepath_or_buffer) as infile:
                 return self._load_table(infile)
         else:
-            return self._load_table(infile)
+            return self._load_table(filepath_or_buffer)
 
     def _load_table(self, file: TextIO) -> pd.DataFrame:
         _, records = Fastafile.read(file)
@@ -65,7 +64,7 @@ class GenbankFormat(FileFormat):
             with open(filepath_or_buffer) as infile:
                 return self._load_table(infile)
         else:
-            return self._load_table(infile)
+            return self._load_table(filepath_or_buffer)
 
     def _load_table(self, file: TextIO) -> pd.DataFrame:
         _, records = GenbankFile.read(file)
