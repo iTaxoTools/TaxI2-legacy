@@ -30,8 +30,9 @@ class TabFormat(FileFormat):
 
     def load_table(self, filepath_or_buffer: Union[str, TextIO]) -> pd.DataFrame:
         try:
-            return pd.read_csv(filepath_or_buffer, sep='\t', dtype=str).rename(
-                columns=str.casefold).rename(columns={'organism': 'species'})[['seqid', 'specimen_voucher', 'species', 'sequence']]
+            with open(filepath_or_buffer, errors='replace') as infile:
+                return pd.read_csv(infile, sep='\t', dtype=str).rename(
+                        columns=str.casefold).rename(columns={'organism': 'species'})[['seqid', 'specimen_voucher', 'species', 'sequence']]
         except KeyError as ex:
             raise ValueError(
                 "'seqid', 'specimen_voucher', 'species' or 'organism', or 'sequence' column is missing") from ex
@@ -44,7 +45,7 @@ class FastaFormat(FileFormat):
 
     def load_table(self, filepath_or_buffer: Union[str, TextIO]) -> pd.DataFrame:
         if isinstance(filepath_or_buffer, str):
-            with open(filepath_or_buffer) as infile:
+            with open(filepath_or_buffer, errors='replace') as infile:
                 return self._load_table(infile)
         else:
             return self._load_table(filepath_or_buffer)
@@ -61,7 +62,7 @@ class GenbankFormat(FileFormat):
 
     def load_table(self, filepath_or_buffer: Union[str, TextIO]) -> pd.DataFrame:
         if isinstance(filepath_or_buffer, str):
-            with open(filepath_or_buffer) as infile:
+            with open(filepath_or_buffer, errors='replace') as infile:
                 return self._load_table(infile)
         else:
             return self._load_table(filepath_or_buffer)
