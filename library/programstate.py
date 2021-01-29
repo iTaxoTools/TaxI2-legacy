@@ -8,8 +8,8 @@ import numpy as np
 import os
 import re
 
-distances_names = ["pairwise uncorrelated distance", "Jukes-Cantor distance",
-                   "Kimura-2-Parameter distance", "pairwise uncorrelated distance counting gaps"]
+distances_names = ["pairwise uncorrected distance", "Jukes-Cantor distance",
+                   "Kimura-2-Parameter distance", "pairwise uncorrected distance counting gaps"]
 distances_short_names = ['p-distance', 'JC distance',
                          'K2P distance', 'p-distance with gaps']
 
