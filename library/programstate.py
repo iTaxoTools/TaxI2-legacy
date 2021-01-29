@@ -278,7 +278,7 @@ def make_distance_table(sequences: pd.Series, already_aligned: bool) -> pd.DataF
             np.asarray(sequences), np.asarray(sequences))
     for i in range(len(sequences)):
         distance_array[(i, i)] = np.full(NDISTANCES, np.nan)
-    return pd.DataFrame(distance_array, index=sequences.index.copy(), columns=sequences.index)
+    return pd.DataFrame(distance_array, index=sequences.index.copy(), columns=sequences.index.copy())
 
 
 def select_distance(distance_table: pd.DataFrame, kind: int) -> pd.DataFrame:

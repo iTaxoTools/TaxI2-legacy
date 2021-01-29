@@ -57,7 +57,7 @@ def gui_main(debug: bool) -> None:
 
 def main() -> None:
     if "debug" in sys.argv:
-        np.seterr(all='raise')
+        np.seterr(all='ignore')
         gui_main(debug=True)
     else:
         np.seterr(all='ignore')
