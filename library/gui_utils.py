@@ -1,9 +1,9 @@
 import os.path
 import tkinter as tk
-import tkinter.filedialog
+import tkinter.filedialog as tkfiledialog
 import tkinter.ttk as ttk
-import tkinter.messagebox
-from typing import Literal, Any, Dict, Tuple, List, Optional
+import tkinter.messagebox as tkmessagebox
+from typing import  Any, Dict, Tuple, List, Optional
 from contextlib import contextmanager
 import warnings
 
@@ -23,19 +23,22 @@ class FileChooser():
     Creates a frame with a label, entry and browse button for choosing files
     """
 
-    def __init__(self, parent: Any, *, label: str, mode: Literal["open", "save"], file_var: Optional[tk.StringVar] = None):
+    def __init__(self, parent: Any, *, label: str, mode: str, file_var: Optional[tk.StringVar] = None):
         self.frame = ttk.Frame(parent)
         self.frame.columnconfigure([0, 1], weight=1)
         self.label = ttk.Label(self.frame, text=label)
         self.file_var = file_var if file_var else tk.StringVar()
         self.entry = ttk.Entry(self.frame, textvariable=self.file_var)
         if mode == "open":
-            self._dialog = tk.filedialog.askopenfilename
+            self._dialog = tkfiledialog.askopenfilename
         elif mode == "save":
-            self._dialog = tk.filedialog.asksaveasfilename
+            self._dialog = tkfiledialog.asksaveasfilename
+        else: # assume "open"
+            self._dialog = tkfiledialog.askopenfilename
 
         def browse() -> None:
-            if (newpath := self._dialog()):
+            newpath: Optional[str] = self._dialog()
+            if newpath:
                 try:
                     newpath = os.path.relpath(newpath)
                 except:
@@ -92,10 +95,10 @@ class Listbox():
     Wrapper for a read-only tk.Listbox with a method that returns the selection
     """
 
-    def __init__(self, parent: tk.Misc, *, height: int, selectmode: Literal["browse", "extended"], values: List[str]) -> None:
+    def __init__(self, parent: tk.Misc, *, height: int, selectmode: str, values: List[str]) -> None:
         self.list = values
         self.listbox = tk.Listbox(
-            parent, height=height, selectmode=selectmode, listvariable=tk.StringVar(value=values))
+            parent, height=height, selectmode=selectmode, listvariable=tk.StringVar(value=" ".join(values)))
         self.grid = self.listbox.grid
 
     def selection(self) -> List[str]:
@@ -160,10 +163,11 @@ class FileListChooser():
 
     def add_files(self) -> None:
         self.listbox.insert('end', *map(
-            try_relpath, tk.filedialog.askopenfilenames()))
+            try_relpath, tkfiledialog.askopenfilenames()))
 
     def add_directory(self) -> None:
-        if not (dirname := tk.filedialog.askdirectory()):
+        dirname: Optional[str] = tkfiledialog.askdirectory()
+        if not dirname:
             return
         self.listbox.insert('end', *map(try_relpath, os.listdir(dirname)))
 
@@ -181,12 +185,12 @@ def display_errors_and_warnings(debug: bool) -> Any:
         with warnings.catch_warnings(record=True) as warns:
             yield
             for w in warns:
-                tk.messagebox.showwarning("Warning", str(w.message))
+                tkmessagebox.showwarning("Warning", str(w.message))
     except FileNotFoundError as ex:
         if debug:
             raise
-        tk.messagebox.showerror("Error", ex.strerror)
+        tkmessagebox.showerror("Error", ex.strerror)
     except Exception as ex:
         if debug:
             raise
-        tk.messagebox.showerror("Error", str(ex))
+        tkmessagebox.showerror("Error", str(ex))

@@ -1,16 +1,15 @@
 from typing import Union, TextIO, Iterator, Tuple, Any
 from library.fasta import Fastafile
 from library.genbank import GenbankFile
-from library.record import Record
-from library.seq import PDISTANCE, JUKES_CANTOR, KIMURA_2P, PDISTANCE_GAPS, NDISTANCES, seq_distances_ufunc, seq_distances_aligned_ufunc, aligner
+from library.seq import PDISTANCE, NDISTANCES, seq_distances_ufunc, seq_distances_aligned_ufunc, aligner
 import tkinter as tk
 import pandas as pd
 import numpy as np
 import os
 import re
 
-distances_names = ["pairwise uncorrelated distance", "Jukes-Cantor distance",
-                   "Kimura-2-Parameter distance", "pairwise uncorrelated distance counting gaps"]
+distances_names = ["pairwise uncorrected distance", "Jukes-Cantor distance",
+                   "Kimura-2-Parameter distance", "pairwise uncorrected distance counting gaps"]
 distances_short_names = ['p-distance', 'JC distance',
                          'K2P distance', 'p-distance with gaps']
 
@@ -31,8 +30,9 @@ class TabFormat(FileFormat):
 
     def load_table(self, filepath_or_buffer: Union[str, TextIO]) -> pd.DataFrame:
         try:
-            return pd.read_csv(filepath_or_buffer, sep='\t', dtype=str).rename(
-                columns=str.casefold).rename(columns={'organism': 'species'})[['seqid', 'specimen_voucher', 'species', 'sequence']]
+            with open(filepath_or_buffer, errors='replace') as infile:
+                return pd.read_csv(infile, sep='\t', dtype=str).rename(
+                        columns=str.casefold).rename(columns={'organism': 'species'})[['seqid', 'specimen_voucher', 'species', 'sequence']]
         except KeyError as ex:
             raise ValueError(
                 "'seqid', 'specimen_voucher', 'species' or 'organism', or 'sequence' column is missing") from ex
@@ -45,10 +45,10 @@ class FastaFormat(FileFormat):
 
     def load_table(self, filepath_or_buffer: Union[str, TextIO]) -> pd.DataFrame:
         if isinstance(filepath_or_buffer, str):
-            with open(filepath_or_buffer) as infile:
+            with open(filepath_or_buffer, errors='replace') as infile:
                 return self._load_table(infile)
         else:
-            return self._load_table(infile)
+            return self._load_table(filepath_or_buffer)
 
     def _load_table(self, file: TextIO) -> pd.DataFrame:
         _, records = Fastafile.read(file)
@@ -62,10 +62,10 @@ class GenbankFormat(FileFormat):
 
     def load_table(self, filepath_or_buffer: Union[str, TextIO]) -> pd.DataFrame:
         if isinstance(filepath_or_buffer, str):
-            with open(filepath_or_buffer) as infile:
+            with open(filepath_or_buffer, errors='replace') as infile:
                 return self._load_table(infile)
         else:
-            return self._load_table(infile)
+            return self._load_table(filepath_or_buffer)
 
     def _load_table(self, file: TextIO) -> pd.DataFrame:
         _, records = GenbankFile.read(file)
@@ -278,7 +278,7 @@ def make_distance_table(sequences: pd.Series, already_aligned: bool) -> pd.DataF
             np.asarray(sequences), np.asarray(sequences))
     for i in range(len(sequences)):
         distance_array[(i, i)] = np.full(NDISTANCES, np.nan)
-    return pd.DataFrame(distance_array, index=sequences.index.copy(), columns=sequences.index)
+    return pd.DataFrame(distance_array, index=sequences.index.copy(), columns=sequences.index.copy())
 
 
 def select_distance(distance_table: pd.DataFrame, kind: int) -> pd.DataFrame:

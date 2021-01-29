@@ -1,5 +1,5 @@
 from library.record import *
-from typing import List, Optional, Tuple, Iterator, TextIO, Dict, Callable, Any
+from typing import List, Optional, Tuple, Iterator, TextIO, Dict, Callable
 import re
 
 

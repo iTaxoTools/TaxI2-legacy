@@ -117,7 +117,7 @@ class AlignmentStats():
         self._update_previous_query_end(frag)
 
     def update_total_length(self, frag: Fragment) -> None:
-        ((target_start, target_end), (query_start, query_end)) = frag
+        ((target_start, target_end), (query_start, _)) = frag
         self.total_length += target_end - target_start + \
             self.target_gap(target_start) + self.query_gap(query_start)
 

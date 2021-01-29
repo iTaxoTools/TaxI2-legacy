@@ -3,6 +3,8 @@
 import sys
 from library.gui_utils import *
 from library.programstate import *
+import tkinter.messagebox as tkmessagebox
+import numpy as np
 
 
 def gui_main(debug: bool) -> None:
@@ -36,7 +38,7 @@ def gui_main(debug: bool) -> None:
         with display_errors_and_warnings(debug):
             programstate.process(
                 input_file_chooser.file_var.get(), output_file_chooser.file_var.get())
-            tk.messagebox.showinfo("Done", "Calculation complete.")
+            tkmessagebox.showinfo("Done", "Calculation complete.")
 
     process_btn = ttk.Button(root, text="Calculate distances", command=process)
 
@@ -55,7 +57,7 @@ def gui_main(debug: bool) -> None:
 
 def main() -> None:
     if "debug" in sys.argv:
-        np.seterr(all='raise')
+        np.seterr(all='ignore')
         gui_main(debug=True)
     else:
         np.seterr(all='ignore')
