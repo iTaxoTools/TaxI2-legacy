@@ -98,10 +98,11 @@ class ProgramState():
     def input_format(self) -> FileFormat:
         return ProgramState.formats[self.input_format_name.get()]()
 
-    def process(self, input_file: str, output_file: str) -> None:
+    def process(self, input_file: str, output_dir: str) -> None:
         if self.input_format_name.get() == "Genbank" and self.already_aligned.get():
             raise ValueError(
                 "'Already aligned' option is not allowed for the Genbank format.")
+        output_file = os.path.join(output_dir, "taxi2_tables.txt")
         table = self.input_format.load_table(input_file)
         sequences = table.set_index(
             [column for column in table.columns if column != 'sequence']).squeeze()
@@ -258,7 +259,7 @@ class ProgramState():
                     outfile, sep='\t', index=False, line_terminator='\n')
 
         if self.print_alignments.get():
-            with open(alignment_file_name(output_file), "w") as alignment_file:
+            with open(os.path.join(output_dir, "taxi2_alignments.txt"), "w") as alignment_file:
                 print_alignments(sequences, alignment_file)
 
 

@@ -15,8 +15,8 @@ def gui_main(debug: bool) -> None:
 
     programstate = ProgramState(root)
 
-    input_file_chooser = FileChooser(root, label="Input file", mode="open")
-    output_file_chooser = FileChooser(root, label="Output File", mode="save")
+    input_file_chooser = FileChooser(root, label="Input File", mode="open")
+    output_dir_chooser = FileChooser(root, label="Output Directory", mode="dir")
 
     aligned_chk = ttk.Checkbutton(
         root, variable=programstate.already_aligned, text="Already aligned")
@@ -37,13 +37,13 @@ def gui_main(debug: bool) -> None:
     def process() -> None:
         with display_errors_and_warnings(debug):
             programstate.process(
-                input_file_chooser.file_var.get(), output_file_chooser.file_var.get())
+                input_file_chooser.file_var.get(), output_dir_chooser.file_var.get())
             tkmessagebox.showinfo("Done", "Calculation complete.")
 
     process_btn = ttk.Button(root, text="Calculate distances", command=process)
 
     input_file_chooser.grid(row=0, column=0)
-    output_file_chooser.grid(row=0, column=2)
+    output_dir_chooser.grid(row=0, column=2)
 
     format_chooser.grid(row=1, column=0)
     distances_frm.grid(row=2, column=1)
