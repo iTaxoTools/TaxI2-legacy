@@ -103,12 +103,13 @@ class Plot:
 
     def stack_hist(self):
         df= self.table.set_index("comparison_type")
-
-
+        num= int(self.table['comparison_type'].nunique())
+        palette=["red", "#add8e6", "blue"]
 
         for i, col in enumerate(df.columns):
             g= sns.FacetGrid(data= self.table, height= 4)
-            g.map(sns.displot, x= col, hue="comparison_type", multiple="stack", data= self.table, palette=["red", "#add8e6", "blue"])
+            g.map(sns.displot, x= col, hue="comparison_type",
+                    multiple="stack", data= self.table, palette= palette[0:num])
 
             for ax in g.axes.flat:
                 ax.set_xlabel(ax.get_xlabel(), fontsize=12)
@@ -121,11 +122,14 @@ class Plot:
 
 
     def dodge_hist(self):
+        num= int(self.table['comparison_type'].nunique())
+        palette=["red", "#add8e6", "blue"]
         df= self.table.set_index("comparison_type")
 
         for i, col in enumerate(df.columns):
             g= sns.FacetGrid(self.table, height= 4)
-            g.map(sns.displot, col, hue="comparison_type", multiple="dodge", data= self.table, palette=["red", "#add8e6", "blue"])
+            g.map(sns.displot, col, hue="comparison_type",
+                    multiple="dodge", data= self.table, palette= palette[0:num])
 
             for ax in g.axes.flat:
                 ax.set_xlabel(ax.get_xlabel(), fontsize=12)
