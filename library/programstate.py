@@ -80,6 +80,8 @@ class ProgramState():
     Encapsulates the state of TaxI2
     """
 
+    SUMMARY_STATISTICS_NAME = "taxi2_tables.txt"
+
     formats = dict(
         Tabfile=TabFormat,
         Fasta=FastaFormat,
@@ -102,7 +104,7 @@ class ProgramState():
         if self.input_format_name.get() == "Genbank" and self.already_aligned.get():
             raise ValueError(
                 "'Already aligned' option is not allowed for the Genbank format.")
-        output_file = os.path.join(output_dir, "taxi2_tables.txt")
+        output_file = os.path.join(output_dir, ProgramState.SUMMARY_STATISTICS_NAME)
         table = self.input_format.load_table(input_file)
         sequences = table.set_index(
             [column for column in table.columns if column != 'sequence']).squeeze()
