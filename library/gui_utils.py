@@ -3,7 +3,7 @@ import tkinter as tk
 import tkinter.filedialog as tkfiledialog
 import tkinter.ttk as ttk
 import tkinter.messagebox as tkmessagebox
-from typing import  Any, Dict, Tuple, List, Optional
+from typing import Any, Dict, Tuple, List, Optional
 from contextlib import contextmanager
 import warnings
 
@@ -35,7 +35,7 @@ class FileChooser():
             self._dialog = tkfiledialog.asksaveasfilename
         elif mode == "dir":
             self._dialog = tkfiledialog.askdirectory
-        else: # assume "open"
+        else:  # assume "open"
             self._dialog = tkfiledialog.askopenfilename
 
         def browse() -> None:
@@ -187,6 +187,8 @@ def display_errors_and_warnings(debug: bool) -> Any:
         with warnings.catch_warnings(record=True) as warns:
             yield
             for w in warns:
+                if "displot" in str(w.message):
+                    continue
                 tkmessagebox.showwarning("Warning", str(w.message))
     except FileNotFoundError as ex:
         if debug:
