@@ -12,12 +12,11 @@ import tkinter.font as tkfont
 import tkinter.messagebox as tkmessagebox
 import tkinter.filedialog as tkfiledialog
 
-from library.gui_utils import AnalysesWidget
-from library.mistake_corrector import MistakeCorrector
-from library.analyses import Analyzer
+from library.programstate import *
+from library.gui_utils import LabeledCombobox
 
 
-class MorphometricAnalyzerGUI(ttk.Frame):
+class TaxiGUI(ttk.Frame):
 
     def __init__(self, *args: Any, preview_dir, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -30,6 +29,7 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         self.images["log_icon"] = tk.PhotoImage(
             file=os.path.join(sys.path[0], "data/file-log.png"))
         self.preview_dir = preview_dir
+        self.programstate = ProgramState(self)
 
         self.create_top_frame()
         self.create_parameters_frame()
@@ -53,7 +53,7 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         top_frame.rowconfigure(0, weight=1)
         top_frame.grid(row=0, column=0, columnspan=3, sticky="nsew")
 
-        ttk.Label(top_frame, text="Morphometricanalyzer",
+        ttk.Label(top_frame, text="Taxi2",
                   font=tkfont.Font(size=20)).grid(row=0, column=0)
         ttk.Separator(top_frame, orient="vertical").grid(
             row=0, column=1, sticky="nsew")
@@ -97,49 +97,7 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         return command
 
     def run_command(self) -> None:
-        self.filelist.delete(*self.filelist.get_children())
-        self.preview.delete("1.0", "end")
-        self.preview_frame.configure(text="Preview")
-        input_file = self.input_file.get()
-        output_file = os.path.join(self.preview_dir, "output.txt")
-        table_file = os.path.join(self.preview_dir, "table.txt")
-        logging.info(f"Processing, input: {input_file}")
-        analyses_list = self.analyses_widget.get()
-        if not analyses_list:
-            tkmessagebox.showerror("Error", "No analyses were chosen")
-            return
-
-        try:
-            with open(input_file, errors='replace') as input_file, open(output_file, mode='w') as output_file, open(table_file, mode='w') as table_file:
-                corrector = MistakeCorrector(input_file)
-                buf = io.StringIO()
-                for line in corrector:
-                    print(line, file=buf)
-                corrector.report(output_file)
-                output_file.write("\n\n\n")
-                buf.seek(0, 0)
-                analyzer = Analyzer(buf, corrector.header_fixer.variables,
-                                    analyses_list, table_file, self.preview_dir)
-                analyzer.set_size_var(self.size_var.get().casefold())
-                with warnings.catch_warnings(record=True) as warns:
-                    analyzer.analyse()
-                    tkmessagebox.showwarning("Warning", '\n\n'.join(
-                        set(str(w.message) for w in warns)))
-                    self.fill_file_list()
-                    tkmessagebox.showinfo("Done", "All analyses are complete")
-                    logging.info("Processing successful\n")
-        except FileNotFoundError as ex:
-            logging.error(ex)
-            if ex.filename:
-                tkmessagebox.showerror("Error", str(ex))
-            else:
-                tkmessagebox.showerror(
-                    "Error", "One of the file names is empty.")
-            raise ex from ex
-        except Exception as ex:
-            logging.error(ex)
-            tkmessagebox.showerror("Error", str(ex))
-            raise ex from ex
+        pass
 
     def outfilenames(self, which: str) -> Iterator[str]:
         if which == "all":
@@ -157,39 +115,27 @@ class MorphometricAnalyzerGUI(ttk.Frame):
         parameters_frame.rowconfigure(5, weight=1)
         parameters_frame.columnconfigure(0, weight=1)
 
-        ttk.Label(parameters_frame, text="Variable used for size standardization").grid(
-            row=0, column=0, columnspan=2, sticky="w")
+        ttk.Label(parameters_frame, text="Input file format").grid(
+            row=0, column=0, sticky='w')
 
-        self.size_var = tk.StringVar()
-        ttk.Entry(parameters_frame, textvariable=self.size_var).grid(
-            row=1, column=0, sticky='we')
+        format_combobox = ttk.Combobox(parameters_frame, textvariable=self.programstate.input_format_name,
+                                       state='readonly', values=list(ProgramState.formats.keys()))
+        format_combobox.current(0)
+        format_combobox.grid(row=1, column=0, sticky='w')
 
-        ttk.Label(
-            parameters_frame, text="Number of analyses").grid(row=2, column=0, columnspan=2, sticky='w')
+        distances_frm = ttk.LabelFrame(
+            parameters_frame, text="Distances to calculate", padding=5, relief='sunken')
+        distances_frm.grid(row=2, column=0, sticky='we')
 
-        self.num_anylyses = tk.StringVar(value="1")
-        ttk.Entry(
-            parameters_frame, textvariable=self.num_anylyses).grid(row=3, column=0, sticky='we')
+        for kind in range(NDISTANCES):
+            ttk.Checkbutton(
+                distances_frm, variable=self.programstate.distance_options[kind], text=distances_names[kind]).grid(
+                row=kind, column=0, sticky="w")
 
-        ttk.Button(
-            parameters_frame, text="Set", command=self.set_num_analyses).grid(row=3, column=1, sticky='w')
-
-        self.analyses_widget = AnalysesWidget(parameters_frame)
-        self.analyses_widget.grid(row=4, column=0, columnspan=2, sticky="we")
-        self.analyses_widget.set_count(1)
-        self.analyses_widget.frame.configure(relief="sunken", padding=3)
-
-        ttk.Label(parameters_frame).grid(row=5, column=0)
-
-    def set_num_analyses(self) -> None:
-        try:
-            num = int(self.num_anylyses.get())
-        except ValueError:
-            tkmessagebox.showwarning(
-                title="Warning", message=f"Can't set number of analyses to {self.num_anylyses.get()}")
-            return
-        else:
-            self.analyses_widget.set_count(num)
+        ttk.Checkbutton(
+            parameters_frame, variable=self.programstate.already_aligned, text="Already aligned").grid(row=3, column=0, sticky='w')
+        ttk.Checkbutton(
+            parameters_frame, variable=self.programstate.print_alignments, text="Print alignments").grid(row=4, column=0, sticky='w')
 
     def create_filelist_frame(self) -> None:
         filelist_frame = ttk.Labelframe(self, text="Files")
@@ -288,6 +234,6 @@ def test_look() -> None:
     root = tk.Tk()
     root.rowconfigure(0, weight=1)
     root.columnconfigure(0, weight=1)
-    gui = MorphometricAnalyzerGUI(root, preview_dir="/tmp/out_dir")
+    gui = TaxiGUI(root, preview_dir="/tmp/out_dir")
     gui.fill_file_list()
     root.mainloop()

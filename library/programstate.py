@@ -32,7 +32,7 @@ class TabFormat(FileFormat):
         try:
             with open(filepath_or_buffer, errors='replace') as infile:
                 return pd.read_csv(infile, sep='\t', dtype=str).rename(
-                        columns=str.casefold).rename(columns={'organism': 'species'})[['seqid', 'specimen_voucher', 'species', 'sequence']]
+                    columns=str.casefold).rename(columns={'organism': 'species'})[['seqid', 'specimen_voucher', 'species', 'sequence']]
         except KeyError as ex:
             raise ValueError(
                 "'seqid', 'specimen_voucher', 'species' or 'organism', or 'sequence' column is missing") from ex
@@ -88,7 +88,7 @@ class ProgramState():
         Genbank=GenbankFormat
     )
 
-    def __init__(self, root: tk.Tk) -> None:
+    def __init__(self, root: tk.Misc) -> None:
         self.input_format_name = tk.StringVar(root, value="Tabfile")
         self.already_aligned = tk.BooleanVar(root, value=False)
         self.distance_options = tuple(tk.BooleanVar(root, value=False)
@@ -104,7 +104,8 @@ class ProgramState():
         if self.input_format_name.get() == "Genbank" and self.already_aligned.get():
             raise ValueError(
                 "'Already aligned' option is not allowed for the Genbank format.")
-        output_file = os.path.join(output_dir, ProgramState.SUMMARY_STATISTICS_NAME)
+        output_file = os.path.join(
+            output_dir, ProgramState.SUMMARY_STATISTICS_NAME)
         table = self.input_format.load_table(input_file)
         sequences = table.set_index(
             [column for column in table.columns if column != 'sequence']).squeeze()
