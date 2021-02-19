@@ -1,9 +1,6 @@
 import os
 import sys
-import io
 import shutil
-import logging
-import warnings
 from typing import Any, Callable, Iterator
 
 import tkinter as tk
@@ -30,7 +27,7 @@ class TaxiGUI(ttk.Frame):
         self.images["log_icon"] = tk.PhotoImage(
             file=os.path.join(sys.path[0], "data/file-log.png"))
         self.preview_dir = preview_dir
-        self.programstate = ProgramState(self)
+        self.programstate = ProgramState(self, self.preview_dir)
 
         self.create_top_frame()
         self.create_parameters_frame()
@@ -105,7 +102,7 @@ class TaxiGUI(ttk.Frame):
             input_file = self.input_file.get()
             output_dir = self.preview_dir
             self.programstate.process(
-                input_file, output_dir)
+                input_file)
             plot_input = os.path.join(
                 self.preview_dir, ProgramState.SUMMARY_STATISTICS_NAME)
             distance_name = [distance for distance, is_chosen in zip(
