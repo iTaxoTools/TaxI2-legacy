@@ -13,7 +13,8 @@ import tkinter.messagebox as tkmessagebox
 import tkinter.filedialog as tkfiledialog
 
 from library.programstate import *
-from library.gui_utils import LabeledCombobox
+from library.gui_utils import display_errors_and_warnings
+from library.plot_taxi import Plot
 
 
 class TaxiGUI(ttk.Frame):
@@ -97,7 +98,21 @@ class TaxiGUI(ttk.Frame):
         return command
 
     def run_command(self) -> None:
-        pass
+        self.filelist.delete(*self.filelist.get_children())
+        self.preview.delete("1.0", "end")
+        self.preview_frame.configure(text="Preview")
+        with display_errors_and_warnings(debug=True):
+            input_file = self.input_file.get()
+            output_dir = self.preview_dir
+            self.programstate.process(
+                input_file, output_dir)
+            plot_input = os.path.join(
+                self.preview_dir, ProgramState.SUMMARY_STATISTICS_NAME)
+            distance_name = [distance for distance, is_chosen in zip(
+                distances_short_names, self.programstate.distance_options) if is_chosen.get()]
+            Plot(plot_input, output_dir, distance_name)
+            self.fill_file_list()
+            tkmessagebox.showinfo("Done", "Calculation complete.")
 
     def outfilenames(self, which: str) -> Iterator[str]:
         if which == "all":
