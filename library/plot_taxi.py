@@ -66,6 +66,10 @@ class Plot:
         self.mult_hist()
         self.stack_hist()
         self.dodge_hist()
+        self.table['comparison_type'].str.replace('inter-genus', 'inter-species')
+        self.mult_hist_without_genus()
+        self.stack_hist_without_genus()
+        self.dodge_hist_without_genus()
         self.calculations()
 
 
@@ -139,6 +143,75 @@ class Plot:
                 ax.tick_params(axis="y", labelsize=10)
 
             plt.savefig(os.path.join(self.output, col+"_dodge_hist"+'.pdf'), transparent=True)
+
+    def mult_hist_without_genus(self):
+
+        df= self.table.set_index("comparison_type")
+
+
+        for i, col in enumerate(df.columns):
+
+            g = sns.FacetGrid(self.table, row="comparison_type", height=1.5, aspect=4)
+            g.map_dataframe(sns.histplot, x= col, binwidth= 0.02)
+
+            g.set_axis_labels("distance", "Count")
+            g.set_xlabels(f"{col}")
+
+            g.savefig(os.path.join(self.output, col+"_layered_hist_without_inter_genus"+'.pdf'), transparent=True)
+
+                    #ax.bar.set_facecolor("red")
+
+
+            #
+            # for ax in g.axes.flat:
+            #         ax.set_xlabel(ax.get_xlabel(), fontsize=12)
+            #         ax.set_title(ax.get_title()+":"+" " + f"{col}",  fontsize=15)
+            #         ax.set_ylabel(ax.get_ylabel(), fontsize=12)
+            #         ax.tick_params(axis="x", labelsize=10)
+            #         ax.tick_params(axis="y", labelsize=10)
+            #
+            #plt.savefig(os.path.join(self.output, col+"_layered_hist_without_inter_genus"+'.pdf'), transparent=True)
+
+
+
+    def stack_hist_without_genus(self):
+        df= self.table.set_index("comparison_type")
+        num= int(self.table['comparison_type'].nunique())
+        palette=["red", "#add8e6", "blue"]
+
+        for i, col in enumerate(df.columns):
+            g= sns.FacetGrid(data= self.table, height= 4)
+            g.map(sns.displot, x= col, hue="comparison_type",
+                    multiple="stack", data= self.table, palette= palette[0:num])
+
+            for ax in g.axes.flat:
+                ax.set_xlabel(ax.get_xlabel(), fontsize=12)
+                ax.set_title(ax.get_title(),  fontsize=20)
+                ax.set_ylabel(ax.get_ylabel(), fontsize=12)
+                ax.tick_params(axis="x", labelsize=10)
+                ax.tick_params(axis="y", labelsize=10)
+
+            plt.savefig(os.path.join(self.output, col+"_stacked_hist_without_inter_genus"+'.pdf'), transparent=True)
+
+
+    def dodge_hist_without_genus(self):
+        num= int(self.table['comparison_type'].nunique())
+        palette=["red", "#add8e6", "blue"]
+        df= self.table.set_index("comparison_type")
+
+        for i, col in enumerate(df.columns):
+            g= sns.FacetGrid(self.table, height= 4)
+            g.map(sns.displot, col, hue="comparison_type",
+                    multiple="dodge", data= self.table, palette= palette[0:num])
+
+            for ax in g.axes.flat:
+                ax.set_xlabel(ax.get_xlabel(), fontsize=12)
+                ax.set_title(ax.get_title(),  fontsize=20)
+                ax.set_ylabel(ax.get_ylabel(), fontsize=12)
+                ax.tick_params(axis="x", labelsize=10)
+                ax.tick_params(axis="y", labelsize=10)
+
+            plt.savefig(os.path.join(self.output, col+"_dodge_hist_without_inter_genus"+'.pdf'), transparent=True)
 
 
 
