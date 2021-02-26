@@ -19,9 +19,26 @@ class FileFormat():
     Interface for file formats supported by the program
     """
 
+    rename_dict = {
+            'organism': 'species',
+            'specimen_identifier': 'specimen_voucher',
+            'specimen identifier': 'specimen_voucher',
+            'specimen voucher': 'specimen_voucher'
+            }
+
     def load_table(self, filepath_or_buffer: Union[str, TextIO]) -> pd.DataFrame:
         raise NotImplementedError
 
+
+    @staticmethod
+    def rename_columns(name: str) -> str:
+        if "sequence" in name:
+            return "sequence"
+        else:
+            try:
+                return FileFormat.rename_dict[name]
+            except KeyError:
+                return name
 
 class TabFormat(FileFormat):
     """
@@ -32,7 +49,7 @@ class TabFormat(FileFormat):
         try:
             with open(filepath_or_buffer, errors='replace') as infile:
                 return pd.read_csv(infile, sep='\t', dtype=str).rename(
-                    columns=str.casefold).rename(columns={'organism': 'species'})[['seqid', 'specimen_voucher', 'species', 'sequence']].drop_duplicates()
+                    columns=str.casefold).rename(columns=FileFormat.rename_columns)[['seqid', 'specimen_voucher', 'species', 'sequence']].drop_duplicates()
         except KeyError as ex:
             raise ValueError(
                 "'seqid', 'specimen_voucher', 'species' or 'organism', or 'sequence' column is missing") from ex
@@ -70,7 +87,7 @@ class GenbankFormat(FileFormat):
     def _load_table(self, file: TextIO) -> pd.DataFrame:
         _, records = GenbankFile.read(file)
         try:
-            return pd.DataFrame((record._fields for record in records())).rename(columns=str.casefold).rename(columns={'organism': 'species'})[['seqid', 'specimen_voucher', 'species', 'sequence']].drop_duplicates()
+            return pd.DataFrame((record._fields for record in records())).rename(columns=str.casefold).rename(columns=FileFormat.rename_columns)[['seqid', 'specimen_voucher', 'species', 'sequence']].drop_duplicates()
         except KeyError as ex:
             raise ValueError(f"{str(ex)} is missing") from ex
 
