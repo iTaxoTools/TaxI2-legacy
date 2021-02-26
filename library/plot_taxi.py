@@ -66,7 +66,7 @@ class Plot:
         self.mult_hist()
         self.stack_hist()
         self.dodge_hist()
-        self.table['comparison_type'].str.replace('inter-genus', 'inter-species')
+        self.table['comparison_type'] = self.table['comparison_type'].str.replace('inter-genus', 'inter-species')
         self.mult_hist_without_genus()
         self.stack_hist_without_genus()
         self.dodge_hist_without_genus()
