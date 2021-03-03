@@ -89,6 +89,7 @@ class Plot:
             g.set_xlabels(f"{col}")
 
             g.savefig(os.path.join(self.output, col+"_layered_hist"+'.pdf'), transparent=True)
+            g.savefig(os.path.join(self.output, "graph_previews", col+"_layered_hist"+'.png'), transparent=True)
 
                     #ax.bar.set_facecolor("red")
 
@@ -123,6 +124,7 @@ class Plot:
                 ax.tick_params(axis="y", labelsize=10)
 
             plt.savefig(os.path.join(self.output, col+"_stacked_hist"+'.pdf'), transparent=True)
+            plt.savefig(os.path.join(self.output, "graph_previews", col+"_stacked_hist"+'.png'), transparent=True)
 
 
     def dodge_hist(self):
@@ -143,6 +145,7 @@ class Plot:
                 ax.tick_params(axis="y", labelsize=10)
 
             plt.savefig(os.path.join(self.output, col+"_dodge_hist"+'.pdf'), transparent=True)
+            plt.savefig(os.path.join(self.output, "graph_previews", col+"_dodge_hist"+'.png'), transparent=True)
 
     def mult_hist_without_genus(self):
 
@@ -158,6 +161,7 @@ class Plot:
             g.set_xlabels(f"{col}")
 
             g.savefig(os.path.join(self.output, col+"_layered_hist_without_inter_genus"+'.pdf'), transparent=True)
+            g.savefig(os.path.join(self.output, "graph_previews", col+"_layered_hist_without_inter_genus"+'.png'), transparent=True)
 
                     #ax.bar.set_facecolor("red")
 
@@ -192,6 +196,7 @@ class Plot:
                 ax.tick_params(axis="y", labelsize=10)
 
             plt.savefig(os.path.join(self.output, col+"_stacked_hist_without_inter_genus"+'.pdf'), transparent=True)
+            plt.savefig(os.path.join(self.output, "graph_previews", col+"_stacked_hist_without_inter_genus"+'.png'), transparent=True)
 
 
     def dodge_hist_without_genus(self):
@@ -212,6 +217,7 @@ class Plot:
                 ax.tick_params(axis="y", labelsize=10)
 
             plt.savefig(os.path.join(self.output, col+"_dodge_hist_without_inter_genus"+'.pdf'), transparent=True)
+            plt.savefig(os.path.join(self.output, "graph_previews", col+"_dodge_hist_without_inter_genus"+'.png'), transparent=True)
 
 
 
