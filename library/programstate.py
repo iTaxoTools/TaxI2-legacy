@@ -112,6 +112,8 @@ class ProgramState():
                                       for _ in range(NDISTANCES))
         self.distance_options[PDISTANCE].set(True)
         self.print_alignments = tk.BooleanVar(root, value=False)
+        self.cluster_distance = tk.StringVar(root, value=distances_names[PDISTANCE])
+        self.cluster_size = tk.StringVar(root, value='0.3')
         self.output_dir = output_dir
 
     @property

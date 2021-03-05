@@ -134,7 +134,7 @@ class TaxiGUI(ttk.Frame):
     def create_parameters_frame(self) -> None:
         parameters_frame = ttk.LabelFrame(self, text="Parameters")
         self.panes.add(parameters_frame, weight=0)
-        parameters_frame.rowconfigure(5, weight=1)
+        parameters_frame.rowconfigure(8, weight=1)
         parameters_frame.columnconfigure(0, weight=1)
 
         ttk.Label(parameters_frame, text="Input file format").grid(
@@ -158,6 +158,20 @@ class TaxiGUI(ttk.Frame):
             parameters_frame, variable=self.programstate.already_aligned, text="Already aligned").grid(row=3, column=0, sticky='w')
         ttk.Checkbutton(
             parameters_frame, variable=self.programstate.print_alignments, text="Print alignments").grid(row=4, column=0, sticky='w')
+
+        ttk.Label(parameters_frame, text="Clustering by:").grid(
+            row=5, column=0, sticky='w')
+
+        ttk.Combobox(parameters_frame, textvariable=self.programstate.cluster_distance,
+                     state='readonly', values=list(distances_names), width=30).grid(row=6, column=0, sticky='w')
+
+        cluster_size_frame = ttk.Frame(parameters_frame)
+        cluster_size_frame.grid(row=7, column=0, sticky='w')
+
+        ttk.Label(cluster_size_frame, text="with threshold ").grid(
+            row=0, column=0, sticky='w')
+        ttk.Entry(cluster_size_frame, textvariable=self.programstate.cluster_size).grid(
+            row=0, column=1, sticky='w')
 
     def create_filelist_frame(self) -> None:
         filelist_frame = ttk.Labelframe(self, text="Files")
