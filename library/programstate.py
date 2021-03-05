@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import networkx as nx
 import os
+import math
 import re
 import warnings
 
@@ -278,25 +279,41 @@ class ProgramState():
 
     def cluster_analysis(self, distance_table: pd.DataFrame) -> None:
         with open(self.output_name("Cluster analysis"), mode='w') as output_file:
+            # extracting options
             distance_kind = distances_names.index(self.cluster_distance.get())
             try:
                 cluster_threshold = float(self.cluster_size.get())
             except Exception:
                 warnings.warn(f"Invalid cluster threshold {self.cluster_size.get()}.\nUsing default: 0.3")
                 cluster_threshold = 0.3
+
+            # preparing the table
             distance_table = seqid_distance_table(distance_table).stack()
             distance_table.index.names = ['seqid1', 'seqid2']
             distance_table = distance_table.map(lambda distances: distances[distance_kind]).reset_index(name="distance")
+
+            # calculating components
             connected_table = distance_table.loc[(distance_table['distance'] < cluster_threshold) | (distance_table["seqid1"].eq(distance_table["seqid2"]))]
             components = nx.connected_components(nx.from_pandas_edgelist(connected_table, source="seqid1", target="seqid2"))
+
+            # add cluster classification to the table
             cluster_of: Dict[str, int] = {}
             for i, component in enumerate(components):
-                print(f'Cluster{i}: {", ".join(component)}', file=output_file)
+                print(f'Cluster{i+1}: {", ".join(component)}', file=output_file)
                 for seqid in component:
                     cluster_of[seqid] = i
             distance_table["cluster1"] = distance_table["seqid1"].map(cluster_of)
             distance_table["cluster2"] = distance_table["seqid2"].map(cluster_of)
-            print(distance_table)
+            print("\n", file=output_file)
+
+            max_in_cluster_distances = distance_table.loc[distance_table["cluster1"] == distance_table["cluster2"]][["cluster1", "distance"]].groupby("cluster1").max()["distance"]
+            print(max_in_cluster_distances)
+
+            print("Maximum intra-sample distance within clusters (marked with # if above specified threshold):", file=output_file)
+            for cluster_i, distance in max_in_cluster_distances.items():
+                if math.isnan(distance):
+                    distance = 0
+                print(f'Cluster{cluster_i}: {distance:.4g}{" #" if distance > cluster_threshold else ""}', file=output_file)
 
 
 def make_distance_table(sequences: pd.Series, already_aligned: bool) -> pd.DataFrame:
