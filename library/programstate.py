@@ -115,6 +115,7 @@ class ProgramState():
                                       for _ in range(NDISTANCES))
         self.distance_options[PDISTANCE].set(True)
         self.print_alignments = tk.BooleanVar(root, value=False)
+        self.perform_clustering = tk.BooleanVar(root, value=False)
         self.cluster_distance = tk.StringVar(root, value=distances_names[PDISTANCE])
         self.cluster_size = tk.StringVar(root, value='0.3')
         self.output_dir = output_dir
@@ -161,7 +162,8 @@ class ProgramState():
                 seqid_distance_table).sort_index().sort_index(axis='columns'))
 
         # clustering
-        self.cluster_analysis(distance_table)
+        if self.perform_clustering.get():
+            self.cluster_analysis(distance_table)
 
         if 'species' in distance_table.index.names:
             # The matrix of distances between seqids (order by species)
