@@ -313,7 +313,7 @@ class ProgramState():
             for cluster_i, distance in max_in_cluster_distances.items():
                 if math.isnan(distance):
                     distance = 0
-                print(f'Cluster{cluster_i}: {distance:.4g}{" #" if distance > cluster_threshold else ""}', file=output_file)
+                print(f'Cluster{cluster_i+1}: {distance:.4g}{" #" if distance > cluster_threshold else ""}', file=output_file)
 
 
 def make_distance_table(sequences: pd.Series, already_aligned: bool) -> pd.DataFrame:
