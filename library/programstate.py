@@ -300,8 +300,12 @@ class ProgramState():
 
             # add cluster classification to the table
             cluster_of: Dict[str, int] = {}
+            max_samples = 0
+            min_samples = len(distance_table)
             for i, component in enumerate(components):
                 print(f'Cluster{i+1}: {", ".join(component)}', file=output_file)
+                min_samples = min(min_samples, len(component))
+                max_samples = max(max_samples, len(component))
                 for seqid in component:
                     cluster_of[seqid] = i
             num_clusters = i + 1
@@ -339,6 +343,9 @@ class ProgramState():
             output_file.write('\n')
             print("Total number of clusters:", num_clusters, file=output_file)
             print("Number of clusters violating threshold for intra-cluster distances:", big_clusters, file=output_file)
+
+            output_file.write('\n')
+            print(f"A total of {num_clusters} clusters were found, containing between {min_samples} and {max_samples} samples.", file=output_file)
 
 def make_distance_table(sequences: pd.Series, already_aligned: bool) -> pd.DataFrame:
     """
