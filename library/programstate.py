@@ -296,25 +296,49 @@ class ProgramState():
             connected_table = distance_table.loc[(distance_table['distance'] < cluster_threshold) | (distance_table["seqid1"].eq(distance_table["seqid2"]))]
             components = nx.connected_components(nx.from_pandas_edgelist(connected_table, source="seqid1", target="seqid2"))
 
+            print(f"Samples were clustered at a threshold of {cluster_threshold:.3g} ({cluster_threshold*100:.2g}%) uncorrected p-distance", file=output_file)
+
             # add cluster classification to the table
             cluster_of: Dict[str, int] = {}
             for i, component in enumerate(components):
                 print(f'Cluster{i+1}: {", ".join(component)}', file=output_file)
                 for seqid in component:
                     cluster_of[seqid] = i
+            num_clusters = i + 1
             distance_table["cluster1"] = distance_table["seqid1"].map(cluster_of)
             distance_table["cluster2"] = distance_table["seqid2"].map(cluster_of)
             print("\n", file=output_file)
 
             max_in_cluster_distances = distance_table.loc[distance_table["cluster1"] == distance_table["cluster2"]][["cluster1", "distance"]].groupby("cluster1").max()["distance"]
-            print(max_in_cluster_distances)
 
             print("Maximum intra-sample distance within clusters (marked with # if above specified threshold):", file=output_file)
+            big_clusters = 0
             for cluster_i, distance in max_in_cluster_distances.items():
                 if math.isnan(distance):
                     distance = 0
-                print(f'Cluster{cluster_i+1}: {distance:.4g}{" #" if distance > cluster_threshold else ""}', file=output_file)
+                if distance > cluster_threshold:
+                    big_clusters += 1
+                    print(f'Cluster{cluster_i+1}: {distance:.4g} #', file=output_file)
+                else:
+                    print(f'Cluster{cluster_i+1}: {distance:.4g}', file=output_file)
 
+            output_file.write("\n")
+
+            min_between_cluster_distance = distance_table.loc[distance_table["cluster1"] > distance_table["cluster2"]][["cluster1", "cluster2", "distance"]].groupby(["cluster1", "cluster2"]).min()["distance"].unstack()
+            for i in range(num_clusters):
+                min_between_cluster_distance.at[(i, i)] = 0
+            min_between_cluster_distance.sort_index(axis=0, inplace=True)
+            min_between_cluster_distance.index.name = ''
+            min_between_cluster_distance.rename(index=(lambda i: f"Cluster{i+1}"), columns=(lambda i: f"Cluster{i+1}"), inplace=True)
+
+            print("Minimum distance between clusters:\n", file=output_file)
+
+            min_between_cluster_distance.to_csv(
+                output_file, sep='\t', line_terminator='\n', float_format="%.4g", index=True)
+
+            output_file.write('\n')
+            print("Total number of clusters:", num_clusters, file=output_file)
+            print("Number of clusters violating threshold for intra-cluster distances:", big_clusters, file=output_file)
 
 def make_distance_table(sequences: pd.Series, already_aligned: bool) -> pd.DataFrame:
     """
