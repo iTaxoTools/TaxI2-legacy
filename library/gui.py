@@ -198,7 +198,7 @@ class TaxiGUI(ttk.Frame):
         self.filelist.bind("<<TreeviewSelect>>", self.preview_selected)
 
     def icon_for_file(self, filename) -> tk.PhotoImage:
-        TXT_EXTS = {".txt", ".tab", ".tsv", ".csv"}
+        TXT_EXTS = {".txt", ".tab", ".tsv", ".csv", ".spart"}
         _, ext = os.path.splitext(filename)
         if ext in TXT_EXTS:
             return self.images["txt_icon"]
@@ -250,7 +250,7 @@ class TaxiGUI(ttk.Frame):
         file_to_preview = self.filelist.item(selected_index, option="text")
         full_file_to_preview = os.path.join(
             self.preview_dir, file_to_preview)
-        TXT_EXTS = {".txt", ".tab", ".tsv", ".csv", ".log"}
+        TXT_EXTS = {".txt", ".tab", ".tsv", ".csv", ".log", ".spart"}
         IMG_EXTS = {".gif", ".png", ".pbm", ".pgm", ".ppm", ".pnm"}
         _, ext = os.path.splitext(file_to_preview)
         if ext in TXT_EXTS:
