@@ -11,6 +11,7 @@ import math
 import re
 import warnings
 import datetime
+import time
 
 distances_names = ["pairwise uncorrected distance", "Jukes-Cantor distance",
                    "Kimura-2-Parameter distance", "pairwise uncorrected distance counting gaps"]
@@ -110,6 +111,7 @@ class ProgramState():
     )
 
     def __init__(self, root: tk.Misc, output_dir: str) -> None:
+        self.root = root
         self.input_format_name = tk.StringVar(root, value="Tabfile")
         self.already_aligned = tk.BooleanVar(root, value=False)
         self.distance_options = tuple(tk.BooleanVar(root, value=False)
@@ -120,6 +122,9 @@ class ProgramState():
         self.cluster_distance = tk.StringVar(root, value=distances_names[PDISTANCE])
         self.cluster_size = tk.StringVar(root, value='0.3')
         self.output_dir = output_dir
+
+    def show_progress(self, message: str) -> None:
+        self.root.show_progress(f"{time.monotonic() - self.start_time:.1f}s: {message}\n")
 
     @property
     def input_format(self) -> FileFormat:
@@ -136,6 +141,7 @@ class ProgramState():
                 outfile, sep='\t', line_terminator='\n', float_format="%.4g", index=index)
 
     def process(self, input_file: str) -> None:
+        self.start_time = time.monotonic()
         if self.input_format_name.get() == "Genbank" and self.already_aligned.get():
             raise ValueError(
                 "'Already aligned' option is not allowed for the Genbank format.")
@@ -148,6 +154,7 @@ class ProgramState():
                 "Extracting sequence from the table failed for some reason")
         distance_table = make_distance_table(
             sequences, self.already_aligned.get())
+        self.show_progress("Distance calcution")
 
         # The table of most similar sequences
         self.output(f"Most similar sequences", table_closest(distance_table))
@@ -156,24 +163,29 @@ class ProgramState():
         for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
             self.output(f"{distances_names[kind]} between sequences", distance_table.pipe(select_distance, kind).pipe(
                 seqid_distance_table))
+        self.show_progress("Seqid distance table 1")
 
         # The matrix of distances between seqids (alphabetical order)
         for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
             self.output(f"{distances_names[kind]} between sequences (Alphabetical order)", distance_table.pipe(select_distance, kind).pipe(
                 seqid_distance_table).sort_index().sort_index(axis='columns'))
+        self.show_progress("Seqid distance table 2")
 
         # clustering
         if self.perform_clustering.get():
             self.cluster_analysis(distance_table, os.path.basename(input_file))
+            self.show_progress("Cluster analysis")
 
         if 'species' in distance_table.index.names:
             # The matrix of distances between seqids (order by species)
             for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
                 self.output(f"{distances_names[kind]} between sequences (Ordered by species)", distance_table.pipe(select_distance, kind).pipe(
                     species_distance_table).sort_index(level=['species', 'seqid']).sort_index(axis='columns', level=['species', 'seqid']))
+            self.show_progress("Seqid distance table 3")
 
             # The matrices of distances between species
             for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
+                self.show_progress(distances_names[kind])
                 this_distance_table = distance_table.pipe(
                     select_distance, kind).pipe(species_distance_table)
                 mean_distances = this_distance_table.groupby(level='species').mean(
@@ -188,12 +200,15 @@ class ProgramState():
 
                 self.output(f"Mean {distances_names[kind]} between species", species_distances.applymap(
                     lambda mean_min_max: mean_min_max[0]))
+                self.show_progress("Mean distance between species")
 
                 self.output(
                     f"Minimum and maximum {distances_names[kind]} between species", species_distances.applymap(show_min_max))
+                self.show_progress("Minimum and maximum distance between species")
 
                 self.output(f"Mean, minimum and maximum {distances_names[kind]} between species", species_distances.applymap(
                     show_mean_min_max))
+                self.show_progress("Mean, minimum and maximum distance between species")
 
                 with open(self.output_name(f"Mean, minimum and maximum intra-species {distances_names[kind]}"), mode='w') as outfile:
                     print(
@@ -204,6 +219,7 @@ class ProgramState():
                         print(
                             f"{species}\t{show_mean_min_max(mean_min_max)}", file=outfile)
                     outfile.write('\n')
+                self.show_progress("Mean, minimum and maximum intra-species distance")
 
                 with open(self.output_name(f"Closest sequence from different species with {distances_names[kind]}"), mode='w') as outfile:
                     print(
@@ -218,6 +234,8 @@ class ProgramState():
                               sep='\t', file=outfile)
                     outfile.write('\n')
 
+                self.show_progress("Closest sequences")
+
                 mean_distances_genera = mean_distances.groupby(select_genus).mean().groupby(
                     select_genus, axis=1).mean().sort_index().sort_index(axis=1)
                 min_distances_genera = min_distances.groupby(select_genus).min().groupby(
@@ -230,6 +248,7 @@ class ProgramState():
 
                 self.output(f"Mean, minimum and maximum {distances_names[kind]} between genera", genera_distances.applymap(
                     show_mean_min_max))
+                self.show_progress("Mean, minimum and maximum distances between genera")
 
             distance_table.index.names = map(
                 lambda s: s + ' (query 1)', distance_table.index.names)
@@ -274,11 +293,13 @@ class ProgramState():
                 same_genus, comparison_type))
 
             self.output("Summary statistics", distance_table, index=False)
+            self.show_progress("Final table")
 
 
         if self.print_alignments.get():
             with open(os.path.join(self.output_dir, "taxi2_alignments.txt"), "w") as alignment_file:
                 print_alignments(sequences, alignment_file)
+            self.show_progress("Alignment is printed")
 
     def cluster_analysis(self, distance_table: pd.DataFrame, input_file: str) -> None:
         with open(self.output_name("Cluster analysis"), mode='w') as output_file:
