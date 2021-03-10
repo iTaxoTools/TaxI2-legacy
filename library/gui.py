@@ -100,6 +100,13 @@ class TaxiGUI(ttk.Frame):
                 shutil.copy(full_filename, save_folder)
         return command
 
+    def show_progress(self, message: str) -> None:
+        """
+        Adds message to preview textbox
+        """
+        self.preview.insert('end', message)
+        self.update()
+
     def run_command(self) -> None:
         self.clear_command()
         self.update()
@@ -112,7 +119,10 @@ class TaxiGUI(ttk.Frame):
                 self.preview_dir, ProgramState.SUMMARY_STATISTICS_NAME)
             distance_name = [distance for distance, is_chosen in zip(
                 distances_short_names, self.programstate.distance_options) if is_chosen.get()]
+            self.show_progress("Starting plotting")
             Plot(plot_input, output_dir, distance_name)
+            self.show_progress("Plotting complete")
+            self.clear_command()
             self.fill_file_list()
             tkmessagebox.showinfo("Done", "Calculation complete.")
 
