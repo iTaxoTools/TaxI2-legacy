@@ -12,6 +12,7 @@ import re
 import warnings
 import datetime
 import time
+import sys
 
 distances_names = ["pairwise uncorrected distance", "Jukes-Cantor distance",
                    "Kimura-2-Parameter distance", "pairwise uncorrected distance counting gaps"]
@@ -146,14 +147,15 @@ class ProgramState():
             raise ValueError(
                 "'Already aligned' option is not allowed for the Genbank format.")
         table = self.input_format.load_table(input_file)
-        sequences = table.set_index(
-            [column for column in table.columns if column != 'sequence']).squeeze()
-        sequences = normalize_sequences(sequences)
-        if not isinstance(sequences, pd.Series):
-            raise ValueError(
-                "Extracting sequence from the table failed for some reason")
+        table.set_index("seqid", inplace=True)
+        table["sequence"] = normalize_sequences(table["sequence"])
         distance_table = make_distance_table(
-            sequences, self.already_aligned.get())
+            table, self.already_aligned.get())
+        del table
+        print(len(distance_table))
+        print(sys.getsizeof(distance_table))
+        print(distance_table.memory_usage())
+        sys.exit()
         self.show_progress("Distance calcution")
 
         # The table of most similar sequences
@@ -390,7 +392,7 @@ class ProgramState():
 def spart_form(s: str) -> str:
     return "_".join(re.compile("[A-Za-z0-9_]+").findall(s))
 
-def make_distance_table(sequences: pd.Series, already_aligned: bool) -> pd.DataFrame:
+def make_distance_table(table: pd.DataFrame, already_aligned: bool) -> pd.DataFrame:
     """
     Takes a series of sequences with a multi-index and returns a square dataframe
 
@@ -400,13 +402,32 @@ def make_distance_table(sequences: pd.Series, already_aligned: bool) -> pd.DataF
     """
     if already_aligned:
         distance_array = seq_distances_ufunc.outer(
-            np.asarray(sequences), np.asarray(sequences))
+            np.asarray(table["sequence"]), np.asarray(table["sequence"]))
     else:
         distance_array = seq_distances_aligned_ufunc.outer(
-            np.asarray(sequences), np.asarray(sequences))
-    for i in range(len(sequences)):
-        distance_array[(i, i)] = np.full(NDISTANCES, np.nan)
-    return pd.DataFrame(distance_array, index=sequences.index.copy(), columns=sequences.index.copy())
+            np.asarray(table["sequence"]), np.asarray(table["sequence"]))
+    # prepare indices
+    seqid1 = table.index.copy()
+    seqid1.name = "seqid (query 1)"
+    seqid2 = table.index.copy()
+    seqid2.name = "seqid (query 2)"
+    # create distance table
+    distance_table = pd.DataFrame(distance_array, index=seqid1, columns=seqid2).stack().reset_index(name="distances")
+
+    # add other columns
+    table.drop(columns="sequence", inplace=True)
+    distance_table = distance_table.join(table, on="seqid (query 1)")
+    distance_table.rename(columns={col:(col + " (query 1)") for col in table.columns}, inplace=True)
+    distance_table = distance_table.join(table, on="seqid (query 2)")
+    distance_table.rename(columns={col:(col + " (query 2)") for col in table.columns}, inplace=True)
+
+    # reorder columns
+    col1 = [col for col in distance_table.columns if "query 1" in col]
+    col2 = [col for col in distance_table.columns if "query 2" in col]
+    distance_table = distance_table[col1 + col2 + ["distances"]]
+    distance_table[distances_short_names] = pd.DataFrame(distance_table["distances"].to_list())
+    distance_table.drop(columns="distances", inplace=True)
+    return distance_table
 
 
 def select_distance(distance_table: pd.DataFrame, kind: int) -> pd.DataFrame:
