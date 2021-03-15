@@ -148,6 +148,7 @@ class ProgramState():
             raise ValueError(
                 "'Already aligned' option is not allowed for the Genbank format.")
         table = self.input_format.load_table(input_file)
+        species_analysis = "species" in table.columns
         table.set_index("seqid", inplace=True)
         table["sequence"] = normalize_sequences(table["sequence"])
         distance_table = make_distance_table(
@@ -182,52 +183,44 @@ class ProgramState():
             self.cluster_analysis(distance_table, os.path.basename(input_file))
             self.show_progress("Cluster analysis")
 
-        return
-
-        if 'species' in distance_table.index.names:
+        if species_analysis:
             # The matrix of distances between seqids (order by species)
             for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
-                self.output(f"{distances_names[kind]} between sequences (Ordered by species)", distance_table.pipe(select_distance, kind).pipe(
-                    species_distance_table).sort_index(level=['species', 'seqid']).sort_index(axis='columns', level=['species', 'seqid']))
+                kind_name = distances_short_names[kind]
+                out_table = pd.DataFrame(distance_table[kind_name], index=pd.MultiIndex.from_frame(distance_table[["species (query 1)", "species (query 2)", "seqid (query 1)", "seqid (query 2)"]])).sort_index().unstack(level=["species (query 2)", "seqid (query 2)"])
+                self.output(f"{distances_names[kind]} between sequences (Ordered by species)", out_table)
+                del out_table
             self.show_progress("Seqid distance table 3")
 
             # The matrices of distances between species
             for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
                 self.show_progress(distances_names[kind])
-                this_distance_table = distance_table.pipe(
-                    select_distance, kind).pipe(species_distance_table)
-                mean_distances = this_distance_table.groupby(level='species').mean(
-                ).groupby(axis=1, level='species').mean().sort_index().sort_index(axis='columns')
-                min_distances = this_distance_table.groupby(level='species').min(
-                ).groupby(axis=1, level='species').min().sort_index().sort_index(axis='columns')
-                max_distances = this_distance_table.groupby(level='species').max(
-                ).groupby(axis=1, level='species').max().sort_index().sort_index(axis='columns')
+                kind_name = distances_short_names[kind]
+                species_statistics = distance_table[["species (query 1)", "species (query 2)", kind_name]].groupby(["species (query 1)", "species (query 2)"]).agg(['mean', 'min', 'max'])[kind_name]
+                species_statistics['minmax'] = species_statistics['min'].apply(format_float).str.cat(species_statistics['max'].apply(format_float), sep='-')
+                species_statistics['mean_minmax'] = species_statistics['mean'].apply(format_float).str.cat(species_statistics['minmax'] + ")", sep=' (')
 
-                species_distances = mean_distances.applymap(lambda mean: (mean,)).combine(
-                    min_distances, series_append).combine(max_distances, series_append)
+                square_species_statistics = species_statistics.unstack("species (query 2)")
 
-                self.output(f"Mean {distances_names[kind]} between species", species_distances.applymap(
-                    lambda mean_min_max: mean_min_max[0]))
+                self.output(f"Mean {distances_names[kind]} between species", square_species_statistics['mean'])
                 self.show_progress("Mean distance between species")
 
                 self.output(
-                    f"Minimum and maximum {distances_names[kind]} between species", species_distances.applymap(show_min_max))
+                    f"Minimum and maximum {distances_names[kind]} between species", square_species_statistics['minmax'])
                 self.show_progress("Minimum and maximum distance between species")
 
-                self.output(f"Mean, minimum and maximum {distances_names[kind]} between species", species_distances.applymap(
-                    show_mean_min_max))
+                self.output(f"Mean, minimum and maximum {distances_names[kind]} between species", square_species_statistics['mean_minmax'])
                 self.show_progress("Mean, minimum and maximum distance between species")
 
                 with open(self.output_name(f"Mean, minimum and maximum intra-species {distances_names[kind]}"), mode='w') as outfile:
                     print(
                         f"Mean, minimum and maximum intra-species {distances_names[kind]}", file=outfile)
-                    for species in mean_distances.index:
-                        mean_min_max = (
-                            mean_distances.at[species, species], min_distances.at[species, species], max_distances.at[species, species])
-                        print(
-                            f"{species}\t{show_mean_min_max(mean_min_max)}", file=outfile)
+                    species_statistics.reset_index(inplace=True)
+                    species_statistics.loc[species_statistics["species (query 1)"] == species_statistics["species (query 2)"]].to_csv(outfile, sep="\t", columns=["species (query 1)", "mean_minmax"], header=False, index=False, line_terminator="\n")
                     outfile.write('\n')
                 self.show_progress("Mean, minimum and maximum intra-species distance")
+
+                continue
 
                 with open(self.output_name(f"Closest sequence from different species with {distances_names[kind]}"), mode='w') as outfile:
                     print(
@@ -257,6 +250,8 @@ class ProgramState():
                 self.output(f"Mean, minimum and maximum {distances_names[kind]} between genera", genera_distances.applymap(
                     show_mean_min_max))
                 self.show_progress("Mean, minimum and maximum distances between genera")
+
+            return
 
             distance_table.index.names = map(
                 lambda s: s + ' (query 1)', distance_table.index.names)
@@ -394,6 +389,10 @@ class ProgramState():
             print(";\n", file=spart_file)
             print("end;", file=spart_file)
 
+def format_float(x: float) -> str:
+    return f"{x:.4g}"
+
+
 def spart_form(s: str) -> str:
     return "_".join(re.compile("[A-Za-z0-9_]+").findall(s))
 
@@ -418,6 +417,7 @@ def make_distance_table(table: pd.DataFrame, already_aligned: bool) -> pd.DataFr
     seqid2.name = "seqid (query 2)"
     # create distance table
     distance_table = pd.DataFrame(distance_array, index=seqid1, columns=seqid2).stack().reset_index(name="distances")
+    distance_table = distance_table[distance_table["seqid (query 1)"] != distance_table["seqid (query 2)"]]
 
     # add other columns
     table.drop(columns="sequence", inplace=True)
@@ -490,7 +490,7 @@ def print_alignments(sequences: pd.Series, alignment_file: TextIO) -> None:
 
 def table_closest(distance_table: pd.DataFrame) -> pd.DataFrame:
     pdistance_name = distances_short_names[PDISTANCE]
-    indices_closest = distance_table.loc[distance_table[pdistance_name] != 0, ["seqid (query 1)", pdistance_name]].groupby("seqid (query 1)").idxmin()[pdistance_name].squeeze()
+    indices_closest = distance_table[["seqid (query 1)", pdistance_name]].groupby("seqid (query 1)").idxmin()[pdistance_name].squeeze().dropna()
     closest_table = distance_table.loc[indices_closest].rename(columns=(lambda col: col.replace("query 2", "most similar sequence in the dataset")))
     return closest_table
 
