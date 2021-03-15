@@ -12,6 +12,7 @@ import re
 import warnings
 import datetime
 import time
+import gc
 import sys
 
 distances_names = ["pairwise uncorrected distance", "Jukes-Cantor distance",
@@ -152,26 +153,31 @@ class ProgramState():
         distance_table = make_distance_table(
             table, self.already_aligned.get())
         del table
-        print(len(distance_table))
-        print(sys.getsizeof(distance_table))
-        print(distance_table.memory_usage())
-        sys.exit()
         self.show_progress("Distance calcution")
 
         # The table of most similar sequences
         self.output(f"Most similar sequences", table_closest(distance_table))
+        self.show_progress("Table of closest sequence")
 
         # The matrix of distances between seqids (input order)
         for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
-            self.output(f"{distances_names[kind]} between sequences", distance_table.pipe(select_distance, kind).pipe(
-                seqid_distance_table))
+            kind_name = distances_short_names[kind]
+            out_table = distance_table[["seqid (query 1)", "seqid (query 2)", kind_name]].set_index(["seqid (query 1)", "seqid (query 2)"]).unstack()
+            self.output(f"{distances_names[kind]} between sequences", out_table)
+            del out_table
+
         self.show_progress("Seqid distance table 1")
 
         # The matrix of distances between seqids (alphabetical order)
         for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
-            self.output(f"{distances_names[kind]} between sequences (Alphabetical order)", distance_table.pipe(select_distance, kind).pipe(
-                seqid_distance_table).sort_index().sort_index(axis='columns'))
+            kind_name = distances_short_names[kind]
+            out_table = distance_table[["seqid (query 1)", "seqid (query 2)", kind_name]].set_index(["seqid (query 1)", "seqid (query 2)"]).sort_index().unstack()
+            self.output(f"{distances_names[kind]} between sequences (Alphabetical order)", out_table)
+            del out_table
+
         self.show_progress("Seqid distance table 2")
+
+        sys.exit()
 
         # clustering
         if self.perform_clustering.get():
@@ -427,6 +433,7 @@ def make_distance_table(table: pd.DataFrame, already_aligned: bool) -> pd.DataFr
     distance_table = distance_table[col1 + col2 + ["distances"]]
     distance_table[distances_short_names] = pd.DataFrame(distance_table["distances"].to_list())
     distance_table.drop(columns="distances", inplace=True)
+    gc.collect()
     return distance_table
 
 
@@ -483,19 +490,10 @@ def print_alignments(sequences: pd.Series, alignment_file: TextIO) -> None:
 
 
 def table_closest(distance_table: pd.DataFrame) -> pd.DataFrame:
-    columns = tuple(map(lambda s: s + " (most similar sequence in the dataset)", distance_table.index.names)
-                    ) + ("p-distance", "JC-distance", "K2P-distance", "p-distance with gaps")
-    index_rename = {name: (name + " (query)")
-                    for name in distance_table.index.names}
-    return pd.DataFrame(iterate_closest(distance_table), index=distance_table.index, columns=columns).reset_index().rename(columns=index_rename)
-
-
-def iterate_closest(distance_table: pd.DataFrame) -> Iterator[Tuple[Any]]:
-    for column in distance_table.columns:
-        idx = distance_table[column].drop(labels=column).map(
-            lambda arr: arr[PDISTANCE]).idxmin()
-        yield idx + tuple(distance_table.loc[(column, idx)])
-
+    pdistance_name = distances_short_names[PDISTANCE]
+    indices_closest = distance_table.loc[distance_table[pdistance_name] != 0, ["seqid (query 1)", pdistance_name]].groupby("seqid (query 1)").idxmin()[pdistance_name].squeeze()
+    closest_table = distance_table.loc[indices_closest].rename(columns=(lambda col: col.replace("query 2", "most similar sequence in the dataset")))
+    return closest_table
 
 def series_append(series_tuple: pd.Series, series_elem: pd.Series) -> pd.Series:
     """
