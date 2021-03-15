@@ -177,12 +177,12 @@ class ProgramState():
 
         self.show_progress("Seqid distance table 2")
 
-        sys.exit()
-
         # clustering
         if self.perform_clustering.get():
             self.cluster_analysis(distance_table, os.path.basename(input_file))
             self.show_progress("Cluster analysis")
+
+        return
 
         if 'species' in distance_table.index.names:
             # The matrix of distances between seqids (order by species)
@@ -312,7 +312,7 @@ class ProgramState():
     def cluster_analysis(self, distance_table: pd.DataFrame, input_file: str) -> None:
         with open(self.output_name("Cluster analysis"), mode='w') as output_file:
             # extracting options
-            distance_kind = distances_names.index(self.cluster_distance.get())
+            distance_kind = distances_short_names[distances_names.index(self.cluster_distance.get())]
             try:
                 cluster_threshold = float(self.cluster_size.get())
             except Exception:
@@ -320,9 +320,8 @@ class ProgramState():
                 cluster_threshold = 0.3
 
             # preparing the table
-            distance_table = seqid_distance_table(distance_table).stack()
-            distance_table.index.names = ['seqid1', 'seqid2']
-            distance_table = distance_table.map(lambda distances: distances[distance_kind]).reset_index(name="distance")
+            distance_table = distance_table[["seqid (query 1)", "seqid (query 2)", distance_kind]].copy()
+            distance_table.columns = ["seqid1", "seqid2", "distance"]
 
             # calculating components
             connected_table = distance_table.loc[(distance_table['distance'] < cluster_threshold) | (distance_table["seqid1"].eq(distance_table["seqid2"]))]

@@ -120,7 +120,7 @@ class TaxiGUI(ttk.Frame):
             distance_name = [distance for distance, is_chosen in zip(
                 distances_short_names, self.programstate.distance_options) if is_chosen.get()]
             self.show_progress("Starting plotting")
-            Plot(plot_input, output_dir, distance_name)
+            # Plot(plot_input, output_dir, distance_name)
             self.show_progress("Plotting complete")
             self.clear_command()
             self.fill_file_list()
