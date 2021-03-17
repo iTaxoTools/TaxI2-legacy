@@ -135,12 +135,12 @@ class ProgramState():
     def output_name(self, description: str) -> str:
         return os.path.join(self.output_dir, description.replace(" ", "_") + ".txt")
 
-    def output(self, description: str, table: pd.DataFrame, index: bool = True) -> None:
+    def output(self, description: str, table: pd.DataFrame, **kwargs) -> None:
         out_name = self.output_name(description)
         with open(out_name, mode='w') as outfile:
             print(description, file=outfile)
             table.to_csv(
-                outfile, sep='\t', line_terminator='\n', float_format="%.4g", index=index)
+                outfile, sep='\t', line_terminator='\n', float_format="%.4g", **kwargs)
 
     def process(self, input_file: str) -> None:
         self.start_time = time.monotonic()
@@ -164,7 +164,8 @@ class ProgramState():
         for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
             kind_name = distances_short_names[kind]
             out_table = distance_table[["seqid (query 1)", "seqid (query 2)", kind_name]].set_index(["seqid (query 1)", "seqid (query 2)"]).unstack()
-            self.output(f"{distances_names[kind]} between sequences", out_table)
+            out_table.columns.names = [''] * len(out_table.columns.names)
+            self.output(f"{distances_names[kind]} between sequences", out_table, index_label=False)
             del out_table
 
         self.show_progress("Seqid distance table 1")
@@ -172,8 +173,9 @@ class ProgramState():
         # The matrix of distances between seqids (alphabetical order)
         for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
             kind_name = distances_short_names[kind]
-            out_table = distance_table[["seqid (query 1)", "seqid (query 2)", kind_name]].set_index(["seqid (query 1)", "seqid (query 2)"]).sort_index().unstack()
-            self.output(f"{distances_names[kind]} between sequences (Alphabetical order)", out_table)
+            out_table = distance_table[["seqid (query 1)", "seqid (query 2)", kind_name]].set_index(["seqid (query 1)", "seqid (query 2)"]).unstack().sort_index().sort_index(axis=1)
+            out_table.columns.names = [''] * len(out_table.columns.names)
+            self.output(f"{distances_names[kind]} between sequences (Alphabetical order)", out_table, index_label=False)
             del out_table
 
         self.show_progress("Seqid distance table 2")
@@ -187,8 +189,9 @@ class ProgramState():
             # The matrix of distances between seqids (order by species)
             for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
                 kind_name = distances_short_names[kind]
-                out_table = pd.DataFrame(distance_table[kind_name], index=pd.MultiIndex.from_frame(distance_table[["species (query 1)", "species (query 2)", "seqid (query 1)", "seqid (query 2)"]])).sort_index().unstack(level=["species (query 2)", "seqid (query 2)"])
-                self.output(f"{distances_names[kind]} between sequences (Ordered by species)", out_table)
+                out_table = pd.Series(distance_table[kind_name].array, index=pd.MultiIndex.from_frame(distance_table[["species (query 1)", "species (query 2)", "seqid (query 1)", "seqid (query 2)"]])).unstack(level=["species (query 2)", "seqid (query 2)"]).sort_index().sort_index(axis=1)
+                out_table.columns.names = ['', '']
+                self.output(f"{distances_names[kind]} between sequences (Ordered by species)", out_table, index_label=False)
                 del out_table
             self.show_progress("Seqid distance table 3")
 
@@ -219,14 +222,14 @@ class ProgramState():
 
                 square_species_statistics = species_statistics.unstack("species (query 2)")
 
-                self.output(f"Mean {distances_names[kind]} between species", square_species_statistics['mean'])
+                self.output(f"Mean {distances_names[kind]} between species", square_species_statistics['mean'], index_label=False)
                 self.show_progress("Mean distance between species")
 
                 self.output(
-                    f"Minimum and maximum {distances_names[kind]} between species", square_species_statistics['minmax'])
+                    f"Minimum and maximum {distances_names[kind]} between species", square_species_statistics['minmax'], index_label=False)
                 self.show_progress("Minimum and maximum distance between species")
 
-                self.output(f"Mean, minimum and maximum {distances_names[kind]} between species", square_species_statistics['mean_minmax'])
+                self.output(f"Mean, minimum and maximum {distances_names[kind]} between species", square_species_statistics['mean_minmax'], index_label=False)
                 self.show_progress("Mean, minimum and maximum distance between species")
 
                 del square_species_statistics
@@ -258,7 +261,7 @@ class ProgramState():
                 genera_statistics = species_statistics.groupby(["genus_1", "genus_2"]).agg({'min': 'min', 'mean': 'mean', 'max': 'max'})
                 genera_mean_minmax = genera_statistics["mean"].map(format_float) + " (" + genera_statistics["min"].map(format_float) + "-" + genera_statistics["max"].map(format_float) + ")"
 
-                self.output(f"Mean, minimum and maximum {distances_names[kind]} between genera", genera_mean_minmax.unstack())
+                self.output(f"Mean, minimum and maximum {distances_names[kind]} between genera", genera_mean_minmax.unstack(), index_label=False)
                 self.show_progress("Mean, minimum and maximum distances between genera")
 
                 genera_mean_minmax = genera_mean_minmax.reset_index(name="mean_minmax")
@@ -318,7 +321,9 @@ class ProgramState():
 
             # calculating components
             connected_table = distance_table.loc[(distance_table['distance'] < cluster_threshold) | (distance_table["seqid1"].eq(distance_table["seqid2"]))]
-            components = nx.connected_components(nx.from_pandas_edgelist(connected_table, source="seqid1", target="seqid2"))
+            graph = nx.from_pandas_edgelist(connected_table, source="seqid1", target="seqid2")
+            graph.add_nodes_from(nodes)
+            components = nx.connected_components(graph)
 
             print(f"Samples were clustered at a threshold of {cluster_threshold:.3g} ({cluster_threshold*100:.2g}%) uncorrected p-distance", file=output_file)
 
