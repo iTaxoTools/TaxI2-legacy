@@ -76,7 +76,7 @@ class FastaFormat(FileFormat):
 
     def _load_table(self, file: TextIO) -> pd.DataFrame:
         _, records = Fastafile.read(file)
-        return pd.DataFrame(([record['seqid'], record['sequence']] for record in records()), columns=['seqid', 'sequence']).drop_duplicates()
+        return pd.DataFrame(([record['seqid'], record['sequence']] for record in records()), columns=['seqid', 'sequence']).drop_duplicates(subset='seqid')
 
 
 class GenbankFormat(FileFormat):
@@ -163,7 +163,7 @@ class ProgramState():
         # The matrix of distances between seqids (input order)
         for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
             kind_name = distances_short_names[kind]
-            out_table = distance_table[["seqid (query 1)", "seqid (query 2)", kind_name]].set_index(["seqid (query 1)", "seqid (query 2)"]).unstack()
+            out_table = distance_table[["seqid (query 1)", "seqid (query 2)", kind_name]].set_index(["seqid (query 1)", "seqid (query 2)"]).squeeze().unstack()
             out_table.columns.names = [''] * len(out_table.columns.names)
             self.output(f"{distances_names[kind]} between sequences", out_table, index_label=False)
             del out_table
@@ -173,7 +173,7 @@ class ProgramState():
         # The matrix of distances between seqids (alphabetical order)
         for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
             kind_name = distances_short_names[kind]
-            out_table = distance_table[["seqid (query 1)", "seqid (query 2)", kind_name]].set_index(["seqid (query 1)", "seqid (query 2)"]).unstack().sort_index().sort_index(axis=1)
+            out_table = distance_table[["seqid (query 1)", "seqid (query 2)", kind_name]].set_index(["seqid (query 1)", "seqid (query 2)"]).squeeze().unstack().sort_index().sort_index(axis=1)
             out_table.columns.names = [''] * len(out_table.columns.names)
             self.output(f"{distances_names[kind]} between sequences (Alphabetical order)", out_table, index_label=False)
             del out_table
@@ -189,8 +189,8 @@ class ProgramState():
             # The matrix of distances between seqids (order by species)
             for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
                 kind_name = distances_short_names[kind]
-                out_table = pd.Series(distance_table[kind_name].array, index=pd.MultiIndex.from_frame(distance_table[["species (query 1)", "species (query 2)", "seqid (query 1)", "seqid (query 2)"]])).unstack(level=["species (query 2)", "seqid (query 2)"]).sort_index().sort_index(axis=1)
-                out_table.columns.names = ['', '']
+                out_table = pd.Series(distance_table[kind_name].array, index=pd.MultiIndex.from_frame(distance_table[["species (query 1)", "species (query 2)", "seqid (query 1)", "seqid (query 2)"]])).squeeze().unstack(level=["species (query 2)", "seqid (query 2)"]).sort_index().sort_index(axis=1)
+                out_table.columns.names = [''] * len(out_table.columns.names)
                 self.output(f"{distances_names[kind]} between sequences (Ordered by species)", out_table, index_label=False)
                 del out_table
             self.show_progress("Seqid distance table 3")
@@ -296,8 +296,8 @@ class ProgramState():
             distance_table.insert(comparison_type_pos, 'comparison_type', same_species.combine(
                 same_genus, comparison_type))
 
-            self.output("Summary statistics", distance_table, index=False)
-            self.show_progress("Final table")
+        self.output("Summary statistics", distance_table, index=False)
+        self.show_progress("Final table")
 
 
         if self.print_alignments.get():
@@ -316,11 +316,12 @@ class ProgramState():
                 cluster_threshold = 0.3
 
             # preparing the table
+            nodes = distance_table["seqid (query 1)"].unique()
             distance_table = distance_table[["seqid (query 1)", "seqid (query 2)", distance_kind]].copy()
             distance_table.columns = ["seqid1", "seqid2", "distance"]
 
             # calculating components
-            connected_table = distance_table.loc[(distance_table['distance'] < cluster_threshold) | (distance_table["seqid1"].eq(distance_table["seqid2"]))]
+            connected_table = distance_table.loc[(distance_table['distance'] < cluster_threshold)]
             graph = nx.from_pandas_edgelist(connected_table, source="seqid1", target="seqid2")
             graph.add_nodes_from(nodes)
             components = nx.connected_components(graph)
