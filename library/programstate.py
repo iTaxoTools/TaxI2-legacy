@@ -151,6 +151,12 @@ class ProgramState():
         species_analysis = "species" in table.columns
         table.set_index("seqid", inplace=True)
         table["sequence"] = normalize_sequences(table["sequence"])
+
+        if self.print_alignments.get():
+            with open(os.path.join(self.output_dir, "taxi2_alignments.txt"), "w") as alignment_file:
+                print_alignments(table["sequence"], alignment_file)
+            self.show_progress("Alignment is printed")
+
         distance_table = make_distance_table(
             table, self.already_aligned.get())
         del table
@@ -302,11 +308,6 @@ class ProgramState():
         self.output("Summary statistics", distance_table, index=False)
         self.show_progress("Final table")
 
-
-        if self.print_alignments.get():
-            with open(os.path.join(self.output_dir, "taxi2_alignments.txt"), "w") as alignment_file:
-                print_alignments(sequences, alignment_file)
-            self.show_progress("Alignment is printed")
 
     def cluster_analysis(self, distance_table: pd.DataFrame, input_file: str) -> None:
         with open(self.output_name("Cluster analysis"), mode='w') as output_file:
