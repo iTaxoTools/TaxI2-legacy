@@ -194,11 +194,11 @@ class ProgramState():
 
             genus1 = distance_table["species (query 1)"].str.split(pat=r' |_', n=1, expand=True).iloc[:,0]
             species1_index = distance_table.columns.get_loc("species (query 1)")
-            distance_table.insert(loc=species1_index+1, column="genus (query 1)", value=genus1)
+            distance_table.insert(loc=species1_index, column="genus (query 1)", value=genus1)
 
             genus2 = distance_table["species (query 2)"].str.split(pat=r' |_', n=1, expand=True).iloc[:,0]
             species2_index = distance_table.columns.get_loc("species (query 2)")
-            distance_table.insert(loc=species2_index+1, column="genus (query 2)", value=genus2)
+            distance_table.insert(loc=species2_index, column="genus (query 2)", value=genus2)
 
             # The matrices of distances between species
             for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
@@ -271,34 +271,12 @@ class ProgramState():
                     outfile.write('\n')
                 self.show_progress("Mean, minimum and maximum intra-genus distance")
 
-            return
+                del species_statistics
+                del genera_statistics
+                del genera_mean_minmax
+                del intra_genus
 
-            distance_table.index.names = map(
-                lambda s: s + ' (query 1)', distance_table.index.names)
-            distance_table.columns.names = map(
-                lambda s: s + ' (query 2)', distance_table.columns.names)
-            distance_table = distance_table.stack(
-                distance_table.columns.names)
-            distance_table = distance_table.reset_index(name='distances')
 
-            distance_table[['genus (query 1)', 'species (query 1)']] = distance_table['species (query 1)'].str.split(
-                r' |_', expand=True, n=1)
-            genus1_pos = distance_table.columns.get_loc(
-                'species (query 1)')
-            distance_table.insert(
-                genus1_pos, 'genus (query 1)', distance_table.pop('genus (query 1)'))
-            distance_table[['genus (query 2)', 'species (query 2)']] = distance_table['species (query 2)'].str.split(
-                r' |_', expand=True, n=1)
-            genus2_pos = distance_table.columns.get_loc(
-                'species (query 2)')
-            distance_table.insert(
-                genus2_pos, 'genus (query 2)', distance_table.pop('genus (query 2)'))
-            for kind in range(NDISTANCES):
-                distance_table[distances_short_names[kind]] = distance_table['distances'].map(
-                    lambda arr: arr[kind])
-            distance_table.pop('distances')
-            distance_table = distance_table.loc[distance_table['seqid (query 1)']
-                                                != distance_table['seqid (query 2)']]
             same_species = distance_table['species (query 1)'] == distance_table['species (query 2)']
             same_genus = distance_table['genus (query 1)'] == distance_table['genus (query 2)']
 
@@ -450,7 +428,7 @@ def make_distance_table(table: pd.DataFrame, already_aligned: bool) -> pd.DataFr
     col1 = [col for col in distance_table.columns if "query 1" in col]
     col2 = [col for col in distance_table.columns if "query 2" in col]
     distance_table = distance_table[col1 + col2 + ["distances"]]
-    distance_table[distances_short_names] = pd.DataFrame(distance_table["distances"].to_list())
+    distance_table[distances_short_names] = pd.DataFrame(distance_table["distances"].to_list(), index=distance_table.index)
     distance_table.drop(columns="distances", inplace=True)
     gc.collect()
     return distance_table
