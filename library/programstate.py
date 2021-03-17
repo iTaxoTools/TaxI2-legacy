@@ -296,6 +296,9 @@ class ProgramState():
             distance_table.insert(comparison_type_pos, 'comparison_type', same_species.combine(
                 same_genus, comparison_type))
 
+            distance_table["species (query 1)"] = distance_table["species (query 1)"].str.split(pat=r' |_', n=1, expand=True).iloc[:,1]
+            distance_table["species (query 2)"] = distance_table["species (query 2)"].str.split(pat=r' |_', n=1, expand=True).iloc[:,1]
+
         self.output("Summary statistics", distance_table, index=False)
         self.show_progress("Final table")
 
