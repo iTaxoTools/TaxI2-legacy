@@ -413,10 +413,10 @@ def make_distance_table(table: pd.DataFrame, already_aligned: bool) -> pd.DataFr
     The entries are arrays of pairwise distances
     """
     if already_aligned:
-        distance_array = seq_distances_ufunc.outer(
+        distance_array = seq_distances_aligned_ufunc.outer(
             np.asarray(table["sequence"]), np.asarray(table["sequence"]))
     else:
-        distance_array = seq_distances_aligned_ufunc.outer(
+        distance_array = seq_distances_ufunc.outer(
             np.asarray(table["sequence"]), np.asarray(table["sequence"]))
     # prepare indices
     seqid1 = table.index.copy()

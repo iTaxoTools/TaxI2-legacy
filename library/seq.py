@@ -214,4 +214,5 @@ def seq_distance_aligned(target: str, query: str) -> np.array:
 
 
 seq_distances_ufunc: np.ufunc = np.frompyfunc(seq_distances, 2, 1)
-seq_distances_aligned_ufunc: np.ufunc = np.frompyfunc(seq_distances, 2, 1)
+seq_distances_aligned_ufunc: np.ufunc = np.frompyfunc(
+    seq_distance_aligned, 2, 1)
