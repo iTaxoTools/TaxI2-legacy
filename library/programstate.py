@@ -212,6 +212,8 @@ class ProgramState():
                 self.output(f"Mean, minimum and maximum {distances_names[kind]} between species", square_species_statistics['mean_minmax'])
                 self.show_progress("Mean, minimum and maximum distance between species")
 
+                del square_species_statistics
+
                 with open(self.output_name(f"Mean, minimum and maximum intra-species {distances_names[kind]}"), mode='w') as outfile:
                     print(
                         f"Mean, minimum and maximum intra-species {distances_names[kind]}", file=outfile)
@@ -220,22 +222,23 @@ class ProgramState():
                     outfile.write('\n')
                 self.show_progress("Mean, minimum and maximum intra-species distance")
 
-                continue
+                closest_sequence_indices = distance_table.loc[distance_table["species (query 1)"] != distance_table["species (query 2)"], ["species (query 1)", kind_name]].groupby("species (query 1)").idxmin()[kind_name].dropna()
+                closest_sequences = distance_table.loc[closest_sequence_indices, ["species (query 1)", kind_name, "seqid (query 2)"]]
 
                 with open(self.output_name(f"Closest sequence from different species with {distances_names[kind]}"), mode='w') as outfile:
                     print(
                         f"Closest sequence from different species with {distances_names[kind]}", file=outfile)
                     print(
                         "species\tdistance (closest sequence of different species)\tseqid (closest sequence of different species)", file=outfile)
-                    for species, idxmin in find_closest_from_another(this_distance_table).items():
-                        other_seqid, other_species, seqid_self = idxmin
-                        distance = this_distance_table.at[(
-                            seqid_self, species), (other_seqid, other_species)]
-                        print(species, f"{distance:.4g}", other_seqid,
-                              sep='\t', file=outfile)
+                    closest_sequences.to_csv(outfile, sep='\t', float_format='%.4g', header=False, index=False, line_terminator='\n') 
                     outfile.write('\n')
 
+                del closest_sequences
+                del closest_sequence_indices
+
                 self.show_progress("Closest sequences")
+
+                continue
 
                 mean_distances_genera = mean_distances.groupby(select_genus).mean().groupby(
                     select_genus, axis=1).mean().sort_index().sort_index(axis=1)
