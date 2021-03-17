@@ -192,11 +192,28 @@ class ProgramState():
                 del out_table
             self.show_progress("Seqid distance table 3")
 
+            genus1 = distance_table["species (query 1)"].str.split(pat=r' |_', n=1, expand=True).iloc[:,0]
+            species1_index = distance_table.columns.get_loc("species (query 1)")
+            distance_table.insert(loc=species1_index+1, column="genus (query 1)", value=genus1)
+
+            genus2 = distance_table["species (query 2)"].str.split(pat=r' |_', n=1, expand=True).iloc[:,0]
+            species2_index = distance_table.columns.get_loc("species (query 2)")
+            distance_table.insert(loc=species2_index+1, column="genus (query 2)", value=genus2)
+
             # The matrices of distances between species
             for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
                 self.show_progress(distances_names[kind])
                 kind_name = distances_short_names[kind]
-                species_statistics = distance_table[["species (query 1)", "species (query 2)", kind_name]].groupby(["species (query 1)", "species (query 2)"]).agg(['mean', 'min', 'max'])[kind_name]
+                species_statistics = distance_table[
+                        ["species (query 1)", "species (query 2)", "genus (query 1)", "genus (query 2)", kind_name]
+                        ].groupby(
+                                ["species (query 1)", "species (query 2)"]
+                                ).agg(
+                                        genus_1 = pd.NamedAgg(column="genus (query 1)", aggfunc="first"),
+                                        genus_2 = pd.NamedAgg(column="genus (query 2)", aggfunc="first"),
+                                        min=pd.NamedAgg(column=kind_name, aggfunc='min'),
+                                        mean=pd.NamedAgg(column=kind_name, aggfunc='mean'),
+                                        max=pd.NamedAgg(column=kind_name, aggfunc='max'))
                 species_statistics['minmax'] = species_statistics['min'].apply(format_float).str.cat(species_statistics['max'].apply(format_float), sep='-')
                 species_statistics['mean_minmax'] = species_statistics['mean'].apply(format_float).str.cat(species_statistics['minmax'] + ")", sep=' (')
 
@@ -238,21 +255,21 @@ class ProgramState():
 
                 self.show_progress("Closest sequences")
 
-                continue
+                genera_statistics = species_statistics.groupby(["genus_1", "genus_2"]).agg({'min': 'min', 'mean': 'mean', 'max': 'max'})
+                genera_mean_minmax = genera_statistics["mean"].map(format_float) + " (" + genera_statistics["min"].map(format_float) + "-" + genera_statistics["max"].map(format_float) + ")"
 
-                mean_distances_genera = mean_distances.groupby(select_genus).mean().groupby(
-                    select_genus, axis=1).mean().sort_index().sort_index(axis=1)
-                min_distances_genera = min_distances.groupby(select_genus).min().groupby(
-                    select_genus, axis=1).min().sort_index().sort_index(axis=1)
-                max_distances_genera = max_distances.groupby(select_genus).max().groupby(
-                    select_genus, axis=1).max().sort_index().sort_index(axis=1)
-
-                genera_distances = mean_distances_genera.applymap(lambda mean: (mean,)).combine(
-                    min_distances_genera, series_append).combine(max_distances_genera, series_append)
-
-                self.output(f"Mean, minimum and maximum {distances_names[kind]} between genera", genera_distances.applymap(
-                    show_mean_min_max))
+                self.output(f"Mean, minimum and maximum {distances_names[kind]} between genera", genera_mean_minmax.unstack())
                 self.show_progress("Mean, minimum and maximum distances between genera")
+
+                genera_mean_minmax = genera_mean_minmax.reset_index(name="mean_minmax")
+                intra_genus = genera_mean_minmax.loc[genera_mean_minmax["genus_1"] == genera_mean_minmax["genus_2"], ["genus_1", "mean_minmax"]]
+
+                with open(self.output_name(f"Mean, minimum and maximum intra-genus {distances_names[kind]}"), mode='w') as outfile:
+                    print(
+                        f"Mean, minimum and maximum intra-genus {distances_names[kind]}", file=outfile)
+                    intra_genus.to_csv(outfile, sep="\t", header=False, index=False, line_terminator="\n")
+                    outfile.write('\n')
+                self.show_progress("Mean, minimum and maximum intra-genus distance")
 
             return
 
