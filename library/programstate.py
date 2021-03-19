@@ -150,7 +150,8 @@ class ProgramState():
         table = self.input_format.load_table(input_file)
         species_analysis = "species" in table.columns
         table.set_index("seqid", inplace=True)
-        table["sequence"] = normalize_sequences(table["sequence"])
+        if not self.already_aligned.get():
+            table["sequence"] = normalize_sequences(table["sequence"])
 
         if self.print_alignments.get():
             with open(os.path.join(self.output_dir, "taxi2_alignments.txt"), "w") as alignment_file:

@@ -3,6 +3,7 @@ from Bio.Align import PairwiseAligner
 import os
 import math
 import numpy as np
+import re
 
 
 with open(os.path.join('data', 'scores.tab')) as scores_file:
@@ -50,12 +51,18 @@ class Alignment():
     Represents the alignment
     """
 
+    content_regex = re.compile(r'[^-nN?].*[^-nN?]')
+
     def __init__(self, alignment: Tuple[Tuple[Tuple[int, int], ...], Tuple[Tuple[int, int], ...]]) -> None:
         self.alignment = alignment
 
     @classmethod
-    def already_aligned(cls, seq: Seq) -> 'Alignment':
-        return cls((((0, len(seq)),), ((0, len(seq)),)))
+    def already_aligned(cls, target: Seq, query: Seq) -> 'Alignment':
+        (target_start, target_end) = Alignment.content_regex.search(target.seq).span()
+        (query_start, query_end) = Alignment.content_regex.search(query.seq).span()
+        content_span = (max(target_start, query_start),
+                        min(target_end, query_end))
+        return cls(((content_span,), (content_span,)))
 
 
 Fragment = Tuple[Tuple[int, int], Tuple[int, int]]
@@ -91,7 +98,7 @@ class AlignmentStats():
         return self.substitions / self.common_length
 
     def pdistance_counting_gaps(self) -> float:
-        return (self.substitions + self.total_gap_length) / self.common_length
+        return (self.substitions + self.total_gap_length) / self.total_length
 
     def jukes_cantor_distance(self) -> float:
         p = self.substitions / self.common_length
@@ -133,8 +140,19 @@ class AlignmentStats():
     def update_transitions_and_transversions(self, frag: Fragment, target: str, query: str) -> None:
         (target_frag, query_frag) = frag
         for pair in zip(target[slice(*target_frag)], query[slice(*query_frag)]):
+            is_missing_0 = pair[0] in '-nN?'
+            is_missing_1 = pair[1] in '-nN?'
             if pair[0] == pair[1]:
                 continue
+            elif (is_missing_0 and is_missing_1):
+                self.common_length -= 1
+                self.total_length -= 1
+            elif pair[0] == '-' or pair[1] == '-':
+                self.common_length -= 1
+                self.total_gap_length += 1
+            elif is_missing_0 or is_missing_1:
+                self.common_length -= 1
+                self.total_length -= 1
             else:
                 self.transitions += AlignmentStats.is_transition(pair)
                 self.transversions += 1 - AlignmentStats.is_transition(pair)
@@ -207,7 +225,7 @@ def seq_distance_aligned(target: str, query: str) -> np.array:
         return np.full(4, np.nan)
     seq_target = Seq(target)
     seq_query = Seq(query)
-    alignment = Alignment.already_aligned(seq_target)
+    alignment = Alignment.already_aligned(seq_target, seq_query)
     stats = AlignmentStats()
     stats.calculate(alignment, seq_target, seq_query)
     return np.array([stats.pdistance(), stats.jukes_cantor_distance(), stats.kimura2p_distance(), stats.pdistance_counting_gaps()])
