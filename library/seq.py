@@ -95,15 +95,15 @@ class AlignmentStats():
             self.update(fragment, target.seq, query.seq)
 
     def pdistance(self) -> float:
-        return self.substitions / self.common_length
+        return abs(self.substitions / self.common_length)
 
     def pdistance_counting_gaps(self) -> float:
-        return (self.substitions + self.total_gap_length) / self.total_length
+        return abs((self.substitions + self.total_gap_length) / self.total_length)
 
     def jukes_cantor_distance(self) -> float:
         p = self.substitions / self.common_length
         try:
-            return - (3 / 4) * math.log(1 - (4 / 3) * p)
+            return abs(- (3 / 4) * math.log(1 - (4 / 3) * p))
         except ValueError:
             return float('inf')
 
@@ -111,7 +111,7 @@ class AlignmentStats():
         p = self.transitions / self.common_length
         q = self.transversions / self.common_length
         try:
-            return - (1 / 2) * math.log((1 - 2 * p - q) * math.sqrt(1 - 2 * q))
+            return abs(- (1 / 2) * math.log((1 - 2 * p - q) * math.sqrt(1 - 2 * q)))
         except ValueError:
             return float('inf')
 

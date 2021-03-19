@@ -1,4 +1,4 @@
-from typing import Union, TextIO, Iterator, Tuple, Any, Dict
+from typing import Union, TextIO, Iterator, Tuple, Any, Dict, Optional
 from library.fasta import Fastafile
 from library.genbank import GenbankFile
 from library.seq import PDISTANCE, NDISTANCES, seq_distances_ufunc, seq_distances_aligned_ufunc, aligner
@@ -122,7 +122,7 @@ class ProgramState():
         self.print_alignments = tk.BooleanVar(root, value=False)
         self.perform_clustering = tk.BooleanVar(root, value=False)
         self.cluster_distance = tk.StringVar(root, value=distances_names[PDISTANCE])
-        self.cluster_size = tk.StringVar(root, value='0.3')
+        self.cluster_size = tk.StringVar(root, value='0.05')
         self.output_dir = output_dir
 
     def show_progress(self, message: str) -> None:
@@ -160,6 +160,10 @@ class ProgramState():
 
         distance_table = make_distance_table(
             table, self.already_aligned.get())
+        if species_analysis:
+            species_table = pd.DataFrame(table["species"])
+        else:
+            species_table = None
         del table
         self.show_progress("Distance calcution")
 
@@ -189,7 +193,7 @@ class ProgramState():
 
         # clustering
         if self.perform_clustering.get():
-            self.cluster_analysis(distance_table, os.path.basename(input_file))
+            self.cluster_analysis(distance_table, species_table, os.path.basename(input_file))
             self.show_progress("Cluster analysis")
 
         if species_analysis:
@@ -310,7 +314,7 @@ class ProgramState():
         self.show_progress("Final table")
 
 
-    def cluster_analysis(self, distance_table: pd.DataFrame, input_file: str) -> None:
+    def cluster_analysis(self, distance_table: pd.DataFrame, species_table: Optional[pd.DataFrame], input_file: str) -> None:
         with open(self.output_name("Cluster analysis"), mode='w') as output_file:
             # extracting options
             distance_kind = distances_short_names[distances_names.index(self.cluster_distance.get())]
@@ -381,6 +385,40 @@ class ProgramState():
 
             output_file.write('\n')
             print(f"A total of {num_clusters} clusters were found, containing between {min_samples} and {max_samples} samples.", file=output_file)
+
+            output_file.write('\n')
+
+            if species_table is not None:
+                species_table["cluster"] = species_table.index.to_series().map(cluster_of) + 1
+                species_table.drop_duplicates(inplace=True)
+
+                print("Comparison of cluster assignment with species assignment in the input file:", file=output_file)
+                exists_multicluster_species = False
+                for (species, clusters) in species_table.groupby("species")["cluster"]:
+                    if len(clusters) > 1:
+                        print(f"Sequences of {species} are included in {len(clusters)} clusters:", ", ".join(clusters.astype(str)), file=output_file)
+                        exists_multicluster_species = True
+                if exists_multicluster_species:
+                    print("Sequences of all other species are included in only one cluster, respectively", file=output_file)
+                else:
+                    print("Sequences of all species are included in only one cluster, respectively.", file=output_file)
+
+                output_file.write('\n')
+
+                print("List of clusters containing sequences of more than one species (according to species assignment in the input file):", file=output_file)
+                exists_multispecies_cluster = False
+                for (cluster, species) in species_table.groupby("cluster")["species"]:
+                    if len(species) > 1:
+                        print(f"Cluster {cluster} contains sequences of {len(species)} species:", ", ".join(species), file=output_file)
+                        exists_multispecies_cluster = True
+                if exists_multispecies_cluster:
+                    print("All other clusters contain sequences of only a single species, respectively.", file=output_file)
+                else:
+                    print("All clusters contain sequences of only one species, respectively.", file=output_file)
+
+                output_file.write('\n')
+
+
         time = datetime.datetime.now()
         with open(os.path.join(self.output_dir, "taxi2_cluster_" + time.strftime("%Y-%m-%dT%H%M%S") + ".spart"), mode='w') as spart_file:
             print("begin spart;", file=spart_file)

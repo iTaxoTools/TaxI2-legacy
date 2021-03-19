@@ -180,7 +180,7 @@ class TaxiGUI(ttk.Frame):
         cluster_size_frame = ttk.Frame(parameters_frame)
         cluster_size_frame.grid(row=8, column=0, sticky='w')
 
-        ttk.Label(cluster_size_frame, text="with threshold ").grid(
+        ttk.Label(cluster_size_frame, text="with distance threshold \n(between 0 and 1)").grid(
             row=0, column=0, sticky='w')
         ttk.Entry(cluster_size_frame, textvariable=self.programstate.cluster_size).grid(
             row=0, column=1, sticky='w')
