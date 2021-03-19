@@ -58,9 +58,11 @@ class Alignment():
 
     @classmethod
     def already_aligned(cls, target: Seq, query: Seq) -> 'Alignment':
-        target_content = Alignment.content_regex.search(target.seq)
-        query_content = Alignment.content_regex.search(query.seq)
-        return cls(((target_content.span(),), (query_content.span(),)))
+        (target_start, target_end) = Alignment.content_regex.search(target.seq).span()
+        (query_start, query_end) = Alignment.content_regex.search(query.seq).span()
+        content_span = (max(target_start, query_start),
+                        min(target_end, query_end))
+        return cls(((content_span,), (content_span,)))
 
 
 Fragment = Tuple[Tuple[int, int], Tuple[int, int]]
