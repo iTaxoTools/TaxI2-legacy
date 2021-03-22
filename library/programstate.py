@@ -454,6 +454,7 @@ class ProgramState():
             print("end;", file=spart_file)
 
     def reference_comparison_process(self, input_file: str, reference_file: str) -> None:
+        self.start_time = time.monotonic()
         if self.input_format_name.get() != "Tabfile":
             raise ValueError(f"Comparison with reference database is not implemented for format {self.input_format.get()}")
         if self.input_format_name.get() == "Genbank" and self.already_aligned.get():
