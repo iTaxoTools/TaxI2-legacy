@@ -69,7 +69,7 @@ class TabFormat(FileFormat):
 
     def load_chunks(self, filepath_or_buffer: Union[str, TextIO]) -> Iterator[pd.DataFrame]:
         with open(filepath_or_buffer, errors='replace') as infile:
-            tables = pd.read_csv(infile, sep='\t', dtype=str, chunk_size=FileFormat.chunk_size)
+            tables = pd.read_csv(infile, sep='\t', dtype=str, chunksize=FileFormat.chunk_size)
             for table in tables:
                 yield self.process_table(table)
 
@@ -464,15 +464,20 @@ class ProgramState():
         if not self.already_aligned.get():
             reference_table["sequence"] = normalize_sequences(reference_table["sequence"])
 
-        with open(self.output_name("Closest reference sequences")) as outfile:
+        with open(self.output_name("Closest reference sequences"), mode="w") as outfile:
             header = True
             for table in self.input_format.load_chunks(input_file):
+                table.set_index("seqid", inplace=True)
+                if not self.already_aligned.get():
+                    table["sequence"] = normalize_sequences(table["sequence"])
                 distance_table = make_distance_table2(table, reference_table, self.already_aligned.get())
                 pdistance_name = distances_short_names[PDISTANCE]
                 indices_closest = distance_table[["seqid (query 1)", pdistance_name]].groupby("seqid (query 1)").idxmin()[pdistance_name].squeeze().dropna()
                 closest_table = distance_table.loc[indices_closest].rename(columns=(lambda col: col.replace("query 2", "closest reference sequence")))
+                closest_table = distance_table.loc[indices_closest].rename(columns=(lambda col: col.replace("query 1", "query")))
                 closest_table.to_csv(outfile, sep='\t', line_terminator='\n', float_format="%.4g", header=header)
                 header=False
+                del closest_table
 
 
 
@@ -548,6 +553,7 @@ def make_distance_table2(table: pd.DataFrame, reference_table: pd.DataFrame, alr
 
     # add other columns
     table.drop(columns="sequence", inplace=True)
+    reference_table = reference_table.drop(columns="sequence")
     distance_table = distance_table.join(table, on="seqid (query 1)")
     distance_table.rename(columns={col:(col + " (query 1)") for col in table.columns}, inplace=True)
     distance_table = distance_table.join(reference_table, on="seqid (query 2)")

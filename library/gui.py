@@ -139,16 +139,20 @@ class TaxiGUI(ttk.Frame):
         self.update()
         with display_errors_and_warnings(debug=True):
             input_file = self.input_file.get()
-            output_dir = self.preview_dir
-            self.programstate.process(
-                input_file)
-            plot_input = os.path.join(
-                self.preview_dir, ProgramState.SUMMARY_STATISTICS_NAME)
-            distance_name = [distance for distance, is_chosen in zip(
-                distances_short_names, self.programstate.distance_options) if is_chosen.get()]
-            self.show_progress("Starting plotting")
-            Plot(plot_input, output_dir, distance_name)
-            self.show_progress("Plotting complete")
+            if self.programstate.reference_comparison.get():
+                self.programstate.reference_comparison_process(
+                    input_file, self.reference_file.get())
+            else:
+                output_dir = self.preview_dir
+                self.programstate.process(
+                    input_file)
+                plot_input = os.path.join(
+                    self.preview_dir, ProgramState.SUMMARY_STATISTICS_NAME)
+                distance_name = [distance for distance, is_chosen in zip(
+                    distances_short_names, self.programstate.distance_options) if is_chosen.get()]
+                self.show_progress("Starting plotting")
+                Plot(plot_input, output_dir, distance_name)
+                self.show_progress("Plotting complete")
             self.clear_command()
             self.fill_file_list()
             tkmessagebox.showinfo("Done", "Calculation complete.")
