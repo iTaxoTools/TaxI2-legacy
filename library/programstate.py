@@ -466,6 +466,7 @@ class ProgramState():
 
         with open(self.output_name("Closest reference sequences"), mode="w") as outfile:
             header = True
+            sequences_num = 0
             for table in self.input_format.load_chunks(input_file):
                 table.set_index("seqid", inplace=True)
                 if not self.already_aligned.get():
@@ -477,7 +478,13 @@ class ProgramState():
                 closest_table = distance_table.loc[indices_closest].rename(columns=(lambda col: col.replace("query 1", "query")))
                 closest_table.to_csv(outfile, sep='\t', line_terminator='\n', float_format="%.4g", header=header)
                 header=False
+                sequences_num += self.input_format.chunk_size
+                outfile.flush()
                 del closest_table
+                del distance_table
+                del table
+                gc.collect()
+                self.show_progress(f"{sequences_num} sequences processed")
 
 
 
