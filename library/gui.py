@@ -20,12 +20,16 @@ class TaxiGUI(ttk.Frame):
         super().__init__(*args, **kwargs)
 
         self.images = {}
-        self.images["txt_icon"] = tk.PhotoImage(
-            file=os.path.join(sys.path[0], "data/file-text.png"))
-        self.images["graph_icon"] = tk.PhotoImage(
-            file=os.path.join(sys.path[0], "data/file-graph.png"))
-        self.images["log_icon"] = tk.PhotoImage(
-            file=os.path.join(sys.path[0], "data/file-log.png"))
+        self.load_images({
+            "txt_icon": "file-text.png",
+            "graph_icon": "file-graph.png",
+            "log_icon": "file-log.png",
+            "open_button": "open.png",
+            "save_button": "save.png",
+            "save_all_button": "save_all.png",
+            "run_button": "run.png",
+            "clear_button": "clear.png"
+        })
         self.preview_dir = preview_dir
         self.programstate = ProgramState(self, self.preview_dir)
 
@@ -33,7 +37,7 @@ class TaxiGUI(ttk.Frame):
         os.mkdir(os.path.join(self.preview_dir, "graph_previews"))
 
         self.panes = ttk.Panedwindow(self, orient='horizontal')
-        self.panes.grid(row=3, column=0, sticky="nsew")
+        self.panes.grid(row=5, column=0, sticky="nsew")
         self.create_top_frame()
         self.create_parameters_frame()
         self.create_filelist_frame()
@@ -46,13 +50,24 @@ class TaxiGUI(ttk.Frame):
         ttk.Entry(self, textvariable=self.input_file).grid(
             row=2, column=0, sticky="we")
 
-        self.rowconfigure(3, weight=1)
+        self.reference_file = tk.StringVar()
+        ttk.Label(self, text="Reference").grid(
+            row=3, column=0, sticky="w")
+        ttk.Entry(self, textvariable=self.reference_file).grid(
+            row=4, column=0, sticky="we")
+
+        self.rowconfigure(5, weight=1)
         self.columnconfigure(0, weight=1)
         self.grid(row=0, column=0, sticky="nsew")
 
+    def load_images(self, image_dict: Dict[str, str]) -> None:
+        for key, file in image_dict.items():
+            self.images[key] = tk.PhotoImage(
+                file=os.path.join(sys.path[0], "data", file))
+
     def create_top_frame(self) -> None:
         top_frame = ttk.Frame(self, relief="sunken", padding=4)
-        top_frame.columnconfigure(6, weight=1)
+        top_frame.columnconfigure(9, weight=1)
         top_frame.rowconfigure(0, weight=1)
         top_frame.grid(row=0, column=0, sticky="nsew")
 
@@ -61,31 +76,43 @@ class TaxiGUI(ttk.Frame):
         ttk.Separator(top_frame, orient="vertical").grid(
             row=0, column=1, sticky="nsew")
 
-        for image_key, image_file, text, column, command in (
-                ("open_button", "open.png", "open", 2, self.open_command),
-                ("save_button", "save.png", "save",
-                 3, self.save_command("selected")),
-                ("save_all_button", "save_all.png",
-                 "save_all", 4, self.save_command("all")),
-                ("run_button", "run.png", "run", 5, self.run_command),
-                ("clear_button", "clear.png", "clear", 6, self.clear_command)):
-            self.images[image_key] = tk.PhotoImage(
-                file=os.path.join(sys.path[0], "data", image_file))
+        ttk.Radiobutton(top_frame, text="Compare sequences\nagainst reference\ndatabase",
+                        variable=self.programstate.reference_comparison, value=True).grid(row=0, column=2, sticky="nsew")
+        ttk.Radiobutton(top_frame, text="All-against-all\nsequence comparison\nwith genetic distance\nanalysis and clustering",
+                        variable=self.programstate.reference_comparison, value=False).grid(row=0, column=3, sticky="nsew")
+
+        for image_key, text, column, command in (
+                ("open_button", "open reference\nsequence database",
+                 4, self.open_reference_command),
+                ("open_button",  "open input file\n(query sequences)",
+                 5, self.open_command),
+                ("save_button",  "save",
+                 6, self.save_command("selected")),
+                ("save_all_button",
+                 "save_all", 7, self.save_command("all")),
+                ("run_button",  "run", 8, self.run_command),
+                ("clear_button",  "clear", 9, self.clear_command)):
             ttk.Button(top_frame, text=text,
                        image=self.images[image_key], compound="top", style="Toolbutton", padding=(10, 0), command=command).grid(row=0, column=column, sticky="w")
 
         ttk.Separator(top_frame, orient="vertical").grid(
-            row=0, column=7, sticky="nsew")
+            row=0, column=10, sticky="nsew")
         self.images["logo"] = tk.PhotoImage(file=os.path.join(
             sys.path[0], "data", "iTaxoTools Digital linneaeus MICROLOGO.png"))
         ttk.Label(top_frame, image=self.images["logo"]).grid(
-            row=0, column=8, sticky="nse")
+            row=0, column=11, sticky="nse")
 
     def open_command(self) -> None:
         path = tkfiledialog.askopenfilename()
         if not path:
             return
         self.input_file.set(os.path.abspath(path))
+
+    def open_reference_command(self) -> None:
+        path = tkfiledialog.askopenfilename()
+        if not path:
+            return
+        self.reference_file.set(os.path.abspath(path))
 
     def save_command(self, which: str) -> Callable[[], None]:
         """

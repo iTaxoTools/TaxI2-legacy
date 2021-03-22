@@ -119,6 +119,7 @@ class ProgramState():
         self.distance_options = tuple(tk.BooleanVar(root, value=False)
                                       for _ in range(NDISTANCES))
         self.distance_options[PDISTANCE].set(True)
+        self.reference_comparison = tk.BooleanVar(root, value=True)
         self.print_alignments = tk.BooleanVar(root, value=False)
         self.perform_clustering = tk.BooleanVar(root, value=False)
         self.cluster_distance = tk.StringVar(root, value=distances_names[PDISTANCE])
