@@ -33,6 +33,8 @@ class FileFormat():
             'specimen voucher': 'specimen_voucher'
             }
 
+    chunk_size = 100
+
     def load_table(self, filepath_or_buffer: Union[str, TextIO]) -> pd.DataFrame:
         raise NotImplementedError
 
@@ -53,13 +55,23 @@ class TabFormat(FileFormat):
     """
 
     def load_table(self, filepath_or_buffer: Union[str, TextIO]) -> pd.DataFrame:
+        with open(filepath_or_buffer, errors='replace') as infile:
+            return self.process_table(pd.read_csv(infile, sep='\t', dtype=str))
+
+    @staticmethod
+    def process_table(table: pd.DataFrame) -> pd.DataFrame:
         try:
-            with open(filepath_or_buffer, errors='replace') as infile:
-                return pd.read_csv(infile, sep='\t', dtype=str).rename(
+            return table.rename(
                     columns=str.casefold).rename(columns=FileFormat.rename_columns)[['seqid', 'specimen_voucher', 'species', 'sequence']].drop_duplicates()
         except KeyError as ex:
             raise ValueError(
                 "'seqid', 'specimen_voucher', 'species' or 'organism', or 'sequence' column is missing") from ex
+
+    def load_chunks(self, filepath_or_buffer: Union[str, TextIO]) -> Iterator[pd.DataFrame]:
+        with open(filepath_or_buffer, errors='replace') as infile:
+            tables = pd.read_csv(infile, sep='\t', dtype=str, chunk_size=FileFormat.chunk_size)
+            for table in tables:
+                yield self.process_table(table)
 
 
 class FastaFormat(FileFormat):
@@ -153,6 +165,10 @@ class ProgramState():
         table.set_index("seqid", inplace=True)
         if not self.already_aligned.get():
             table["sequence"] = normalize_sequences(table["sequence"])
+
+        if self.reference_comparison.get():
+            self.reference_comparison_process(table, reference_file)
+            return
 
         if self.print_alignments.get():
             with open(os.path.join(self.output_dir, "taxi2_alignments.txt"), "w") as alignment_file:
@@ -437,6 +453,30 @@ class ProgramState():
             print(";\n", file=spart_file)
             print("end;", file=spart_file)
 
+    def reference_comparison_process(self, input_file: str, reference_file: str) -> None:
+        if self.input_format_name.get() != "Tabfile":
+            raise ValueError(f"Comparison with reference database is not implemented for format {self.input_format.get()}")
+        if self.input_format_name.get() == "Genbank" and self.already_aligned.get():
+            raise ValueError(
+                "'Already aligned' option is not allowed for the Genbank format.")
+        reference_table = self.input_format.load_table(reference_file)
+        reference_table.set_index("seqid", inplace=True)
+        if not self.already_aligned.get():
+            reference_table["sequence"] = normalize_sequences(reference_table["sequence"])
+
+        with open(self.output_name("Closest reference sequences")) as outfile:
+            header = True
+            for table in self.input_format.load_chunks(input_file):
+                distance_table = make_distance_table2(table, reference_table, self.already_aligned.get())
+                pdistance_name = distances_short_names[PDISTANCE]
+                indices_closest = distance_table[["seqid (query 1)", pdistance_name]].groupby("seqid (query 1)").idxmin()[pdistance_name].squeeze().dropna()
+                closest_table = distance_table.loc[indices_closest].rename(columns=(lambda col: col.replace("query 2", "closest reference sequence")))
+                closest_table.to_csv(outfile, sep='\t', line_terminator='\n', float_format="%.4g", header=header)
+                header=False
+
+
+
+
 def format_float(x: float) -> str:
     return f"{x:.4g}"
 
@@ -482,6 +522,46 @@ def make_distance_table(table: pd.DataFrame, already_aligned: bool) -> pd.DataFr
     distance_table.drop(columns="distances", inplace=True)
     gc.collect()
     return distance_table
+
+def make_distance_table2(table: pd.DataFrame, reference_table: pd.DataFrame, already_aligned: bool) -> pd.DataFrame:
+    """
+    Takes a series of sequences with a multi-index and returns a square dataframe
+
+    Index and columns of the dataframe are the same as the index of the series
+
+    The entries are arrays of pairwise distances
+    """
+    if already_aligned:
+        distance_array = seq_distances_aligned_ufunc.outer(
+            np.asarray(table["sequence"]), np.asarray(reference_table["sequence"]))
+    else:
+        distance_array = seq_distances_ufunc.outer(
+            np.asarray(table["sequence"]), np.asarray(reference_table["sequence"]))
+    # prepare indices
+    seqid1 = table.index.copy()
+    seqid1.name = "seqid (query 1)"
+    seqid2 = reference_table.index.copy()
+    seqid2.name = "seqid (query 2)"
+    # create distance table
+    distance_table = pd.DataFrame(distance_array, index=seqid1, columns=seqid2).stack().reset_index(name="distances")
+    distance_table = distance_table[distance_table["seqid (query 1)"] != distance_table["seqid (query 2)"]]
+
+    # add other columns
+    table.drop(columns="sequence", inplace=True)
+    distance_table = distance_table.join(table, on="seqid (query 1)")
+    distance_table.rename(columns={col:(col + " (query 1)") for col in table.columns}, inplace=True)
+    distance_table = distance_table.join(reference_table, on="seqid (query 2)")
+    distance_table.rename(columns={col:(col + " (query 2)") for col in reference_table.columns}, inplace=True)
+
+    # reorder columns
+    col1 = [col for col in distance_table.columns if "query 1" in col]
+    col2 = [col for col in distance_table.columns if "query 2" in col]
+    distance_table = distance_table[col1 + col2 + ["distances"]]
+    distance_table[distances_short_names] = pd.DataFrame(distance_table["distances"].to_list(), index=distance_table.index)
+    distance_table.drop(columns="distances", inplace=True)
+    gc.collect()
+    return distance_table
+
 
 
 def select_distance(distance_table: pd.DataFrame, kind: int) -> pd.DataFrame:
