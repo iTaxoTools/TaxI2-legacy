@@ -477,7 +477,11 @@ class ProgramState():
                 closest_table = distance_table.loc[indices_closest].rename(columns=(lambda col: col.replace("query 1", "query")))
                 closest_table.to_csv(outfile, sep='\t', line_terminator='\n', float_format="%.4g", header=header)
                 header=False
+                outfile.flush()
                 del closest_table
+                del distance_table
+                del table
+                gc.collect()
 
 
 
