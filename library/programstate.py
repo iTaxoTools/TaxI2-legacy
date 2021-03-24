@@ -1,7 +1,7 @@
 from typing import Union, TextIO, Iterator, Tuple, Any, Dict, Optional
 from library.fasta import Fastafile
 from library.genbank import GenbankFile
-from library.seq import PDISTANCE, NDISTANCES, seq_distances_ufunc, seq_distances_aligned_ufunc, aligner
+from library.seq import PDISTANCE, NDISTANCES, seq_distances_ufunc, seq_distances_aligned_ufunc, make_aligner
 import tkinter as tk
 import pandas as pd
 import numpy as np
@@ -139,7 +139,9 @@ class ProgramState():
         self.output_dir = output_dir
 
     def show_progress(self, message: str) -> None:
-        self.root.show_progress(f"{time.monotonic() - self.start_time:.1f}s: {message}\n")
+        full_message = f"{time.monotonic() - self.start_time:.1f}s: {message}\n"
+        print(full_message)
+        self.root.show_progress(full_message)
 
     @property
     def input_format(self) -> FileFormat:
@@ -623,6 +625,7 @@ def alignment_file_name(output_file: str) -> str:
 def print_alignments(sequences: pd.Series, alignment_file: TextIO) -> None:
     sequences = sequences.copy()
     sequences.index = sequences.index.get_level_values('seqid')
+    aligner = make_aligner()
     for (seqid_target, target) in sequences.items():
         for (seqid_query, query) in sequences.items():
             print(f"{seqid_target} <-> {seqid_query}", file=alignment_file)

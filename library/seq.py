@@ -27,8 +27,10 @@ except KeyError as ex:
     raise ValueError(f"'{ex.args[0]}' is missing in data/scores.tab") from ex
 
 
-aligner = PairwiseAligner(match_score=MATCH_SCORE, mismatch_score=MISMATCH_SCORE, end_open_gap_score=END_GAP_PENALTY,
-                          end_extend_gap_score=END_GAP_EXTEND_PENALTY, internal_open_gap_score=GAP_PENALTY, internal_extend_gap_score=GAP_EXTEND_PENALTY)
+def make_aligner() -> PairwiseAligner:
+    aligner = PairwiseAligner(match_score=MATCH_SCORE, mismatch_score=MISMATCH_SCORE, end_open_gap_score=END_GAP_PENALTY,
+                              end_extend_gap_score=END_GAP_EXTEND_PENALTY, internal_open_gap_score=GAP_PENALTY, internal_extend_gap_score=GAP_EXTEND_PENALTY)
+    return aligner
 
 
 class Seq():
@@ -43,7 +45,10 @@ class Seq():
         return len(self.seq)
 
     def align(self, other: 'Seq') -> 'Alignment':
-        return Alignment(aligner.align(self.seq, other.seq)[0].aligned)
+        aligner = make_aligner()
+        alignment = aligner.align(self.seq, other.seq)[0].aligned
+        del aligner
+        return Alignment(alignment)
 
 
 class Alignment():
@@ -206,6 +211,7 @@ def seq_distances(target: str, query: str) -> np.array:
     alignment = seq_target.align(seq_query)
     stats = AlignmentStats()
     stats.calculate(alignment, seq_target, seq_query)
+    del alignment
     return np.array([stats.pdistance(), stats.jukes_cantor_distance(), stats.kimura2p_distance(), stats.pdistance_counting_gaps()])
 
 
