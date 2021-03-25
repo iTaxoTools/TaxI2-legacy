@@ -2,6 +2,7 @@ from typing import Union, TextIO, Iterator, Tuple, Any, Dict, Optional
 from library.fasta import Fastafile
 from library.genbank import GenbankFile
 from library.seq import PDISTANCE, NDISTANCES, seq_distances_ufunc, seq_distances_aligned_ufunc, make_aligner
+from multiprocessing import Pool
 import tkinter as tk
 import pandas as pd
 import numpy as np
@@ -280,7 +281,7 @@ class ProgramState():
                         f"Closest sequence from different species with {distances_names[kind]}", file=outfile)
                     print(
                         "species\tdistance (closest sequence of different species)\tseqid (closest sequence of different species)", file=outfile)
-                    closest_sequences.to_csv(outfile, sep='\t', float_format='%.4g', header=False, index=False, line_terminator='\n') 
+                    closest_sequences.to_csv(outfile, sep='\t', float_format='%.4g', header=False, index=False, line_terminator='\n')
                     outfile.write('\n')
 
                 del closest_sequences
@@ -499,6 +500,12 @@ def format_float(x: float) -> str:
 def spart_form(s: str) -> str:
     return "_".join(re.compile("[A-Za-z0-9_]+").findall(s))
 
+def _seq_par(x):
+    return seq_distances_ufunc.outer(x[0], x[1])
+
+def _seq_par_aligned(x):
+    return seq_distances_aligned_ufunc.outer(x[0], x[1])
+
 def make_distance_table(table: pd.DataFrame, already_aligned: bool) -> pd.DataFrame:
     """
     Takes a series of sequences with a multi-index and returns a square dataframe
@@ -507,12 +514,26 @@ def make_distance_table(table: pd.DataFrame, already_aligned: bool) -> pd.DataFr
 
     The entries are arrays of pairwise distances
     """
-    if already_aligned:
-        distance_array = seq_distances_aligned_ufunc.outer(
-            np.asarray(table["sequence"]), np.asarray(table["sequence"]))
-    else:
-        distance_array = seq_distances_ufunc.outer(
-            np.asarray(table["sequence"]), np.asarray(table["sequence"]))
+    _lines = 10
+    _tasks = 1
+    _ufunc = _seq_par_aligned if already_aligned else _seq_par
+    _len = len(table["sequence"])
+    _sections = math.ceil(_len / _lines)
+    print('> Number of Chunks:', _sections)
+    chunks = np.split(np.asarray(table["sequence"]), _sections)
+    ref_table = np.asarray(table["sequence"])
+    x = [(i, ref_table) for i in chunks]
+    res_list = []
+    with Pool(maxtasksperchild=_tasks) as p:
+        print('> {} / {}'.format(0, _sections))
+        res = p.imap(_ufunc, x)
+        for i, res in enumerate(res):
+            print('> {} / {}'.format(i+1, _sections))
+            res_list.append(res)
+            # print(res) # Write this to a temp file
+    print('> Merging Chunks:', _sections)
+    distance_array = np.concatenate(res_list)
+
     # prepare indices
     seqid1 = table.index.copy()
     seqid1.name = "seqid (query 1)"
@@ -546,12 +567,28 @@ def make_distance_table2(table: pd.DataFrame, reference_table: pd.DataFrame, alr
 
     The entries are arrays of pairwise distances
     """
-    if already_aligned:
-        distance_array = seq_distances_aligned_ufunc.outer(
-            np.asarray(table["sequence"]), np.asarray(reference_table["sequence"]))
-    else:
-        distance_array = seq_distances_ufunc.outer(
-            np.asarray(table["sequence"]), np.asarray(reference_table["sequence"]))
+
+    _lines = 10
+    _tasks = 1
+    _map_chunksize = 1
+    _ufunc = _seq_par_aligned if already_aligned else _seq_par
+    _len = len(table["sequence"])
+    _sections = math.ceil(_len / _lines)
+    print('> Number of Chunks:', _sections)
+    chunks = np.split(np.asarray(table["sequence"]), _sections)
+    ref_table = np.asarray(reference_table["sequence"])
+    x = [(i, ref_table) for i in chunks]
+    res_list = []
+    with Pool(maxtasksperchild=_tasks) as p:
+        print('> {} / {}'.format(0, _sections))
+        res = p.imap(_ufunc, x, chunksize=_map_chunksize)
+        for i, res in enumerate(res):
+            print('> {} / {}'.format(i+1, _sections))
+            res_list.append(res)
+            # print(res) # Write this to a temp file
+    print('> Merging Chunks:', _sections)
+    distance_array = np.concatenate(res_list)
+
     # prepare indices
     seqid1 = table.index.copy()
     seqid1.name = "seqid (query 1)"

@@ -5,6 +5,7 @@ import sys
 import numpy as np
 import tempfile
 import tkinter as tk
+import multiprocessing
 
 from library.gui import TaxiGUI
 
@@ -38,4 +39,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     main()
