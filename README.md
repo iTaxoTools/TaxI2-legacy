@@ -21,7 +21,7 @@ The possible scores are:
 TaxI2 included a module for calculating distances between sequences, which is written in Rust. It might need to be compiled before it can be used.
 
 ### Rust installation
-(Instructions on the Rust site)[https://www.rust-lang.org/tools/install].
+[Instructions on the Rust site](https://www.rust-lang.org/tools/install).
 
 Detailed instruction below.
 
@@ -33,9 +33,9 @@ rustup update
 ```
 
 #### Windows installation
-Download and run (rustup-init.exe)[https://static.rust-lang.org/rustup/dist/i686-pc-windows-gnu/rustup-init.exe].
+Download and run [rustup-init.exe](https://static.rust-lang.org/rustup/dist/i686-pc-windows-gnu/rustup-init.exe).
 
-You might need to install (Microsoft Build Tools for C++)[https://visualstudio.microsoft.com/de/visual-cpp-build-tools/], which should include the c++ compiler, Windows 10 SDK and English language files.
+You might need to install [Microsoft Build Tools for C++](https://visualstudio.microsoft.com/de/visual-cpp-build-tools), which should include the c++ compiler, Windows 10 SDK and English language files.
 
 Find out whether your Python interpreter is 32- or 64-bit. For this run:
 ```
@@ -64,11 +64,11 @@ cargo build --release
 ```
 
 To compile for another Python interpreter (for example `python3.6`), do instead:
-On Linux:
+* On Linux:
 ```
 PYO3_PYTHON=python3.6 cargo build --release
 ```
-On Windows:
+* On Windows:
 ```
 $env:PYO3_PYTHON=python3.6 
 cargo build --release
