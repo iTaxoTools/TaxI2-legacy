@@ -191,10 +191,10 @@ def display_errors_and_warnings(debug: bool) -> Any:
                     continue
                 tkmessagebox.showwarning("Warning", str(w.message))
     except FileNotFoundError as ex:
-        if debug:
-            raise
         tkmessagebox.showerror("Error", ex.strerror)
-    except Exception as ex:
         if debug:
             raise
+    except Exception as ex:
         tkmessagebox.showerror("Error", str(ex))
+        if debug:
+            raise
