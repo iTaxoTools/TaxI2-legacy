@@ -459,10 +459,7 @@ class ProgramState():
     def reference_comparison_process(self, input_file: str, reference_file: str) -> None:
         self.start_time = time.monotonic()
         if self.input_format_name.get() != "Tabfile":
-            raise ValueError(f"Comparison with reference database is not implemented for format {self.input_format.get()}")
-        if self.input_format_name.get() == "Genbank" and self.already_aligned.get():
-            raise ValueError(
-                "'Already aligned' option is not allowed for the Genbank format.")
+            raise ValueError(f"Comparison with reference database is not implemented for format {self.input_format_name.get()}")
         reference_table = self.input_format.load_table(reference_file)
         reference_table.set_index("seqid", inplace=True)
         if not self.already_aligned.get():

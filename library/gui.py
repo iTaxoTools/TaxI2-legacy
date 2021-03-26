@@ -148,9 +148,18 @@ class TaxiGUI(ttk.Frame):
         with display_errors_and_warnings(debug=True):
             input_file = self.input_file.get()
             if self.programstate.reference_comparison.get():
+                if self.programstate.perform_clustering.get():
+                    tkmessagebox.showwarning(
+                        "Warning", 'Clustering is not performed in the "Compare against reference" mode')
+                if self.programstate.print_alignments.get():
+                    tkmessagebox.showwarning(
+                        "Warning", 'Printing alignments is not implemented for "Compare against reference" mode')
                 self.programstate.reference_comparison_process(
                     input_file, self.reference_file.get())
             else:
+                if self.reference_file.get():
+                    tkmessagebox.showwarning(
+                        "Warning", 'You have selected the "All against all sequence comparison" mode. A reference database is not needed in this mode and the selected reference database file will be ignored.')
                 output_dir = self.preview_dir
                 self.programstate.process(
                     input_file)
