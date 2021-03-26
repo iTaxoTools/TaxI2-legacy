@@ -2,7 +2,7 @@ from typing import Union, TextIO, Iterator, Tuple, Any, Dict, Optional
 from library.fasta import Fastafile
 from library.genbank import GenbankFile
 from library.seq import PDISTANCE, NDISTANCES, seq_distances_ufunc, seq_distances_aligned_ufunc, make_aligner
-from multiprocessing import Pool
+from multiprocessing import Pool, cpu_count
 import tkinter as tk
 import pandas as pd
 import numpy as np
@@ -506,6 +506,14 @@ def _seq_par(x):
 def _seq_par_aligned(x):
     return seq_distances_aligned_ufunc.outer(x[0], x[1])
 
+def _lines_for_data_len(tar, ref):
+    _max_comparisons = 10000
+    _cores = cpu_count()
+    _lines = math.ceil(_max_comparisons / ref)
+    _opt_split = math.ceil(tar / _cores)
+    _lines = min(_lines, _opt_split)
+    return _lines
+
 def make_distance_table(table: pd.DataFrame, already_aligned: bool) -> pd.DataFrame:
     """
     Takes a series of sequences with a multi-index and returns a square dataframe
@@ -514,13 +522,14 @@ def make_distance_table(table: pd.DataFrame, already_aligned: bool) -> pd.DataFr
 
     The entries are arrays of pairwise distances
     """
-    _lines = 10
+    print('> Calculating distance table:')
     _tasks = 1
     _ufunc = _seq_par_aligned if already_aligned else _seq_par
     _len = len(table["sequence"])
+    _lines = _lines_for_data_len(_len, _len)
     _sections = math.ceil(_len / _lines)
     print('> Number of Chunks:', _sections)
-    chunks = np.split(np.asarray(table["sequence"]), _sections)
+    chunks = np.array_split(np.asarray(table["sequence"]), _sections)
     ref_table = np.asarray(table["sequence"])
     x = [(i, ref_table) for i in chunks]
     res_list = []
@@ -567,15 +576,16 @@ def make_distance_table2(table: pd.DataFrame, reference_table: pd.DataFrame, alr
 
     The entries are arrays of pairwise distances
     """
-
-    _lines = 10
+    print('> Calculating distance table:')
     _tasks = 1
     _map_chunksize = 1
     _ufunc = _seq_par_aligned if already_aligned else _seq_par
-    _len = len(table["sequence"])
-    _sections = math.ceil(_len / _lines)
+    _len_tar = len(table["sequence"])
+    _len_ref = len(reference_table["sequence"])
+    _lines = _lines_for_data_len(_len_tar, _len_ref)
+    _sections = math.ceil(_len_tar / _lines)
     print('> Number of Chunks:', _sections)
-    chunks = np.split(np.asarray(table["sequence"]), _sections)
+    chunks = np.array_split(np.asarray(table["sequence"]), _sections)
     ref_table = np.asarray(reference_table["sequence"])
     x = [(i, ref_table) for i in chunks]
     res_list = []
