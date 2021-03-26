@@ -15,6 +15,7 @@ import datetime
 import time
 import gc
 import sys
+import itertools
 
 distances_names = ["pairwise uncorrected distance", "Jukes-Cantor distance",
                    "Kimura-2-Parameter distance", "pairwise uncorrected distance counting gaps"]
@@ -49,6 +50,9 @@ class FileFormat():
                 return FileFormat.rename_dict[name]
             except KeyError:
                 return name
+
+    def load_chunks(self, filepath_or_buffer: Union[str, TextIO]) -> Iterator[pd.DataFrame]:
+        raise NotImplementedError
 
 class TabFormat(FileFormat):
     """
@@ -90,6 +94,27 @@ class FastaFormat(FileFormat):
     def _load_table(self, file: TextIO) -> pd.DataFrame:
         _, records = Fastafile.read(file)
         return pd.DataFrame(([record['seqid'], record['sequence']] for record in records()), columns=['seqid', 'sequence']).drop_duplicates(subset='seqid')
+
+    def load_chunks(self, filepath_or_buffer: Union[str, TextIO]) -> Iterator[pd.DataFrame]:
+        if isinstance(filepath_or_buffer, str):
+            with open(filepath_or_buffer, errors='replace') as infile:
+                for chunk in self._load_chunks(infile):
+                    yield chunk
+        else:
+            for chunk in self._load_chunks(filepath_or_buffer):
+                yield chunk
+
+    def _load_chunks(self, file: TextIO) -> Iterator[pd.DataFrame]:
+        _, records_gen = Fastafile.read(file)
+        records = records_gen()
+        while True:
+            chunk = itertools.islice(records, FileFormat.chunk_size)
+            table = pd.DataFrame(([record['seqid'], record['sequence']] for record in chunk), columns=['seqid', 'sequence'])
+            if len(table) == 0:
+                break
+            yield table.drop_duplicates(subset='seqid').copy()
+            
+
 
 
 class GenbankFormat(FileFormat):
@@ -458,11 +483,8 @@ class ProgramState():
 
     def reference_comparison_process(self, input_file: str, reference_file: str) -> None:
         self.start_time = time.monotonic()
-        if self.input_format_name.get() != "Tabfile":
-            raise ValueError(f"Comparison with reference database is not implemented for format {self.input_format.get()}")
-        if self.input_format_name.get() == "Genbank" and self.already_aligned.get():
-            raise ValueError(
-                "'Already aligned' option is not allowed for the Genbank format.")
+        if self.input_format_name.get() == "Genbank":
+            raise ValueError(f"Comparison with reference database is not implemented for the Genbank format")
         reference_table = self.input_format.load_table(reference_file)
         reference_table.set_index("seqid", inplace=True)
         if not self.already_aligned.get():
