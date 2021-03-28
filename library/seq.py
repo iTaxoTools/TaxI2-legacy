@@ -1,12 +1,15 @@
 from typing import Tuple, Optional
 from Bio.Align import PairwiseAligner
 import os
+import sys
 import math
 import numpy as np
 import re
 
+resource_path = getattr(sys, '_MEIPASS', sys.path[0])
 
-with open(os.path.join('data', 'scores.tab')) as scores_file:
+
+with open(os.path.join(resource_path, 'data', 'scores.tab')) as scores_file:
     scores_dict = {}
     for line in scores_file:
         score_name, _, val = line.partition('\t')

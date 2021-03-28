@@ -13,6 +13,8 @@ from library.programstate import *
 from library.gui_utils import display_errors_and_warnings
 from library.plot_taxi import Plot
 
+resource_path = getattr(sys, '_MEIPASS', sys.path[0])
+
 
 class TaxiGUI(ttk.Frame):
 
@@ -69,7 +71,7 @@ class TaxiGUI(ttk.Frame):
     def load_images(self, image_dict: Dict[str, str]) -> None:
         for key, file in image_dict.items():
             self.images[key] = tk.PhotoImage(
-                file=os.path.join(sys.path[0], "data", file))
+                file=os.path.join(resource_path, "data", file))
 
     def create_top_frame(self) -> None:
         top_frame = ttk.Frame(self, relief="sunken", padding=4)
@@ -106,7 +108,7 @@ class TaxiGUI(ttk.Frame):
         ttk.Separator(top_frame, orient="vertical").grid(
             row=0, column=11, sticky="nsew")
         self.images["logo"] = tk.PhotoImage(file=os.path.join(
-            sys.path[0], "data", "iTaxoTools Digital linneaeus MICROLOGO.png"))
+            resource_path, "data", "iTaxoTools Digital linneaeus MICROLOGO.png"))
         ttk.Label(top_frame, image=self.images["logo"]).grid(
             row=0, column=12, sticky="nse")
 
