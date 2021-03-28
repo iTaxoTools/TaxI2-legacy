@@ -9,6 +9,7 @@ import multiprocessing
 
 from library.gui import TaxiGUI
 
+resource_path = getattr(sys, '_MEIPASS', sys.path[0])
 
 def gui_main() -> None:
     root = tk.Tk()
@@ -20,7 +21,7 @@ def gui_main() -> None:
     root.title("TaxI2")
     if os.name == "nt":
         root.wm_iconbitmap(os.path.join(
-            sys.path[0], 'data', 'TaxI2.ico'))
+            resource_path, 'data', 'TaxI2.ico'))
 
     root.protocol("WM_DELETE_WINDOW", close_window)
     root.rowconfigure(0, weight=1)
