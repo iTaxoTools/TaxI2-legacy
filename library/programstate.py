@@ -43,6 +43,8 @@ class FileFormat():
 
     @staticmethod
     def rename_columns(name: str) -> str:
+        regex = "([a-zA-Z0-9_-]+)"
+        name = ''.join(re.findall(regex, name))
         if "sequence" in name:
             return "sequence"
         else:
@@ -113,7 +115,7 @@ class FastaFormat(FileFormat):
             if len(table) == 0:
                 break
             yield table.drop_duplicates(subset='seqid').copy()
-            
+
 
 
 
