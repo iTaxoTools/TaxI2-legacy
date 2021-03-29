@@ -162,4 +162,32 @@ impl Default for Aligner {
 #[cfg(test)]
 mod test_super {
     use super::*;
+
+    #[test]
+    fn test_align() {
+        let aligned = vec![
+            ("ttcctcgt", "cattctcgt", "-ttcctcgt", "cattctcgt"),
+            ("cccgtgcg", "acgtccg", "cccgtgcg", "-acgtccg"),
+            ("gtcattag", "gtcatttag", "gtcattag-", "gtcatttag"),
+            ("cccaaggt", "cacaaggt", "cccaaggt", "cacaaggt"),
+            ("cctagtag", "cctatt", "cctagtag", "cctatt--"),
+            ("tgatcagg", "tgactgag", "tgatcagg", "tgactgag"),
+            ("tcagttct", "tcagttcgct", "tcagttct--", "tcagttcgct"),
+            ("catccaac", "cttcca", "catccaac", "cttcca--"),
+        ];
+        let aligner = Aligner {
+            match_score: 1,
+            mismatch_score: -1,
+            gap_penalty: -100,
+            gap_extend_penalty: -10,
+            end_gap_penalty: -2,
+            end_gap_extend_penalty: -1,
+        };
+
+        for (target, query, target_align_test, query_align_test) in aligned {
+            let (target_align, query_align) = aligner.align_to_str(target, query);
+            assert_eq!(target_align, target_align_test);
+            assert_eq!(query_align, query_align_test);
+        }
+    }
 }
