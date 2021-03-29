@@ -169,9 +169,10 @@ class TaxiGUI(ttk.Frame):
                     self.preview_dir, ProgramState.SUMMARY_STATISTICS_NAME)
                 distance_name = [distance for distance, is_chosen in zip(
                     distances_short_names, self.programstate.distance_options) if is_chosen.get()]
-                self.show_progress("Starting plotting")
-                Plot(plot_input, output_dir, distance_name)
-                self.show_progress("Plotting complete")
+                if self.programstate.species_analysis:
+                    self.show_progress("Starting plotting")
+                    Plot(plot_input, output_dir, distance_name)
+                    self.show_progress("Plotting complete")
             self.clear_command()
             self.fill_file_list()
             tkmessagebox.showinfo("Done", "Calculation complete.")
