@@ -1,5 +1,6 @@
 mod needle;
 
+use pyo3::exceptions;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
@@ -9,7 +10,10 @@ pub use crate::needle::Aligner;
 #[pyfunction]
 fn align_to_str(target: &str, query: &str) -> PyResult<(String, String)> {
     let aligner = Aligner::default();
-    Ok(aligner.align_to_str(target, query))
+    aligner
+        .align(target.as_bytes(), query.as_bytes())
+        .as_strings()
+        .map_err(exceptions::PyUnicodeEncodeError::new_err)
 }
 
 /// A Python module implemented in Rust.

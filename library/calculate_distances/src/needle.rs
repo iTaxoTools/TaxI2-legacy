@@ -3,6 +3,7 @@ mod score;
 mod table;
 
 use score::{Dir, Score};
+use std::string::FromUtf8Error;
 use table::Table;
 
 /// Contains parameters for the Needleman-Wunsch algorithm.
@@ -16,64 +17,12 @@ pub struct Aligner {
 }
 
 impl Aligner {
-    /// Returns two strings representing aligned `target` and `query` respectively.
-    ///
-    /// `target` and `query` should be ASCII strings.
-    ///
-    /// # Panics
-    /// May panic if non-ASCII characters are encountered.
-    pub fn align_to_str(&self, target: &str, query: &str) -> (String, String) {
-        // Convert arguments into byte arrays
-        let target = target.as_bytes();
-        let query = query.as_bytes();
-        // Allocate space for the result
-        let (mut target_align, mut query_align) = {
-            let len = target.len().max(query.len());
-            (Vec::with_capacity(len), Vec::with_capacity(len))
-        };
-        // Perform alignment
-        let table = self.align(target, query);
-        // Start from the bottom-right corner
-        let (mut i, mut j) = (target.len(), query.len());
-        while i > 0 || j > 0 {
-            // iterate until the top-left corner
-            let current = table[[i, j]];
-            // Push corresponding characters to the result
-            let (target_c, query_c) = match current.dir {
-                Dir::Diagonal => (target[i - 1], query[j - 1]),
-                Dir::Up => (b'-', query[j - 1]),
-                Dir::Left => (target[i - 1], b'-'),
-            };
-            target_align.push(target_c);
-            query_align.push(query_c);
-            // Move to the next cell
-            match current.dir {
-                Dir::Diagonal => {
-                    i -= 1;
-                    j -= 1;
-                }
-                Dir::Up => {
-                    j -= 1;
-                }
-                Dir::Left => {
-                    i -= 1;
-                }
-            };
-        }
-        // Reverse the result, since the iteration was backwards
-        target_align.reverse();
-        query_align.reverse();
-
-        (
-            String::from_utf8(target_align).unwrap(),
-            String::from_utf8(query_align).unwrap(),
-        )
-    }
-
     /// Construct the Needleman-Wunsch table for `target` and `query`.
-    ///
-    /// `target` is horizontal, `query` is vertical.
-    fn align(&self, target: &[u8], query: &[u8]) -> Table<Score> {
+    pub fn align<'target, 'query>(
+        &self,
+        target: &'target [u8],
+        query: &'query [u8],
+    ) -> Alignment<'target, 'query> {
         // Allocate and initialize table
         let mut table = Table::<Score>::new(target.len() + 1, query.len() + 1);
         table.fill_default();
@@ -142,7 +91,11 @@ impl Aligner {
             }
         }
 
-        table
+        Alignment {
+            target,
+            query,
+            table,
+        }
     }
 }
 
@@ -159,12 +112,125 @@ impl Default for Aligner {
     }
 }
 
+/// Contains two aligned sequences
+pub struct Alignment<'target, 'query> {
+    target: &'target [u8],
+    query: &'query [u8],
+    table: Table<Score>,
+}
+
+impl<'target, 'query> Alignment<'target, 'query> {
+    /// Iterate backwards over the path in the Needleman-Wunsch table.
+    pub fn iter<'alignment>(&'alignment self) -> AlignmentIter<'target, 'query, 'alignment> {
+        AlignmentIter {
+            current_row: self.table.height - 1,
+            current_column: self.table.width - 1,
+            target: self.target,
+            query: self.query,
+            table: &self.table,
+        }
+    }
+
+    /// Returns two strings representing aligned target and query respectively.
+    /// # Errors
+    /// Returns [Err] if invalid UTF-8 has been constructed
+    pub fn as_strings(&self) -> Result<(String, String), FromUtf8Error> {
+        // Allocate space for the result
+        let (mut target_align, mut query_align) = {
+            let len = self.target.len().max(self.query.len());
+            (Vec::with_capacity(len), Vec::with_capacity(len))
+        };
+        // Collect the symbols
+        for (target_c, query_c) in self.iter() {
+            target_align.push(target_c);
+            query_align.push(query_c);
+        }
+
+        // Reverse the result, since the iteration was backwards
+        target_align.reverse();
+        query_align.reverse();
+
+        Ok((
+            String::from_utf8(target_align)?,
+            String::from_utf8(query_align)?,
+        ))
+    }
+}
+
+/// Iterator over the alignment path
+pub struct AlignmentIter<'target, 'query, 'alignment> {
+    current_row: usize,
+    current_column: usize,
+    target: &'target [u8],
+    query: &'query [u8],
+    table: &'alignment Table<Score>,
+}
+
+impl<'target, 'query, 'alignment> AlignmentIter<'target, 'query, 'alignment> {
+    // Returns the current cell of the alignment table
+    fn current_cell(&self) -> &Score {
+        &self.table[[self.current_column, self.current_row]]
+    }
+
+    // Returns the current char of target sequence
+    //
+    // # Panics
+    // Panics if self.current_column == 0
+    fn current_target(&self) -> u8 {
+        self.target[self.current_column - 1]
+    }
+
+    // Returns the current char of query sequence
+    //
+    // # Panics
+    // Panics if self.current_row == 0
+    fn current_query(&self) -> u8 {
+        self.query[self.current_row - 1]
+    }
+
+    // Moves to the previous cell of the alignment sequence
+    // according to the current direction
+    fn shift_back(&mut self) {
+        match self.current_cell().dir {
+            Dir::Diagonal => {
+                self.current_row -= 1;
+                self.current_column -= 1;
+            }
+            Dir::Up => {
+                self.current_row -= 1;
+            }
+            Dir::Left => {
+                self.current_column -= 1;
+            }
+        }
+    }
+}
+
+impl<'target, 'query, 'alignment> Iterator for AlignmentIter<'target, 'query, 'alignment> {
+    type Item = (u8, u8);
+    // Yields the previous pair of aligned characters
+    fn next(&mut self) -> Option<(u8, u8)> {
+        // If current cell is the top-left cell,
+        // the iteration is finished
+        if self.current_row == 0 && self.current_column == 0 {
+            return None;
+        }
+        let (target_c, query_c) = match self.current_cell().dir {
+            Dir::Diagonal => (self.current_target(), self.current_query()),
+            Dir::Up => (b'-', self.current_query()),
+            Dir::Left => (self.current_target(), b'-'),
+        };
+        self.shift_back();
+        Some((target_c, query_c))
+    }
+}
+
 #[cfg(test)]
 mod test_super {
     use super::*;
 
     #[test]
-    fn test_align() {
+    fn test_align() -> Result<(), FromUtf8Error> {
         let aligned = vec![
             ("ttcctcgt", "cattctcgt", "-ttcctcgt", "cattctcgt"),
             ("cccgtgcg", "acgtccg", "cccgtgcg", "-acgtccg"),
@@ -185,9 +251,12 @@ mod test_super {
         };
 
         for (target, query, target_align_test, query_align_test) in aligned {
-            let (target_align, query_align) = aligner.align_to_str(target, query);
+            let (target_align, query_align) = aligner
+                .align(target.as_bytes(), query.as_bytes())
+                .as_strings()?;
             assert_eq!(target_align, target_align_test);
             assert_eq!(query_align, query_align_test);
         }
+        Ok(())
     }
 }
