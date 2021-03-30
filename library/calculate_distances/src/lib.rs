@@ -1,3 +1,4 @@
+mod distance;
 mod needle;
 
 use pyo3::exceptions;
