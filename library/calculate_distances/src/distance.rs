@@ -10,8 +10,8 @@ pub struct AlignmentStats {
 }
 
 impl AlignmentStats {
-    // Zeroed state
-    fn new() -> Self {
+    /// Zeroed state.
+    pub fn new() -> Self {
         AlignmentStats {
             total_length: 0,
             common_length: 0,
@@ -82,8 +82,8 @@ impl AlignmentStats {
         self.transversions += 1;
     }
 
-    // Count `(x, y)` pair
-    fn update(&mut self, (x, y): (u8, u8)) {
+    /// Count `(x, y)` pair.
+    pub fn update(&mut self, (x, y): (u8, u8)) {
         use NucleotideType::*;
         use SymbolType::*;
         match (classify(x), classify(y)) {
