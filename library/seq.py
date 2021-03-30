@@ -5,6 +5,7 @@ import sys
 import math
 import numpy as np
 import re
+import library.calculate_distances as calc
 
 resource_path = getattr(sys, '_MEIPASS', sys.path[0])
 
@@ -240,6 +241,6 @@ def seq_distance_aligned(target: str, query: str) -> np.array:
     return np.array([stats.pdistance(), stats.jukes_cantor_distance(), stats.kimura2p_distance(), stats.pdistance_counting_gaps()])
 
 
-seq_distances_ufunc: np.ufunc = np.frompyfunc(seq_distances, 2, 1)
+seq_distances_ufunc: np.ufunc = np.frompyfunc(calc.seq_distances, 2, 1)
 seq_distances_aligned_ufunc: np.ufunc = np.frompyfunc(
     seq_distance_aligned, 2, 1)
