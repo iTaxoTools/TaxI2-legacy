@@ -131,6 +131,16 @@ impl<'target, 'query> Alignment<'target, 'query> {
         }
     }
 
+    /// Iterate backwards over the path in the Needleman-Wunsch table, skips the end gaps
+    pub fn common_path_iter<'alignment>(
+        &'alignment self,
+    ) -> AlignmentCommonIter<'target, 'query, 'alignment> {
+        AlignmentCommonIter {
+            back_gap: true,
+            inner: self.iter(),
+        }
+    }
+
     /// Returns two strings representing aligned target and query respectively.
     /// # Errors
     /// Returns [Err] if invalid UTF-8 has been constructed
@@ -225,9 +235,53 @@ impl<'target, 'query, 'alignment> Iterator for AlignmentIter<'target, 'query, 'a
     }
 }
 
+/// Iterates over the alignment path, skipping
+pub struct AlignmentCommonIter<'target, 'query, 'alignment> {
+    back_gap: bool,
+    inner: AlignmentIter<'target, 'query, 'alignment>,
+}
+
+impl<'target, 'query, 'alignment> AlignmentCommonIter<'target, 'query, 'alignment> {
+    /// Returns the next pair of symbols after the back gap
+    fn next_after_back_gap(&mut self) -> Option<<AlignmentIter as Iterator>::Item> {
+        if !self.back_gap {
+            return self.inner.next();
+        }
+        loop {
+            if let Dir::Diagonal = self.inner.current_cell().dir {
+                self.back_gap = false;
+                return self.inner.next();
+            }
+            self.inner.next();
+        }
+    }
+}
+
+impl<'target, 'query, 'alignment> Iterator for AlignmentCommonIter<'target, 'query, 'alignment> {
+    type Item = <AlignmentIter<'target, 'query, 'alignment> as Iterator>::Item;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.inner.current_row == 0 || self.inner.current_column == 0 {
+            None
+        } else {
+            self.next_after_back_gap()
+        }
+    }
+}
+
 #[cfg(test)]
 mod test_super {
     use super::*;
+
+    fn test_aligner() -> Aligner {
+        Aligner {
+            match_score: 1,
+            mismatch_score: -1,
+            gap_penalty: -10,
+            gap_extend_penalty: -5,
+            end_gap_penalty: -2,
+            end_gap_extend_penalty: -1,
+        }
+    }
 
     #[test]
     fn test_align() -> Result<(), FromUtf8Error> {
@@ -241,14 +295,7 @@ mod test_super {
             ("tcagttct", "tcagttcgct", "tcagttct--", "tcagttcgct"),
             ("catccaac", "cttcca", "catccaac", "cttcca--"),
         ];
-        let aligner = Aligner {
-            match_score: 1,
-            mismatch_score: -1,
-            gap_penalty: -100,
-            gap_extend_penalty: -10,
-            end_gap_penalty: -2,
-            end_gap_extend_penalty: -1,
-        };
+        let aligner = test_aligner();
 
         for (target, query, target_align_test, query_align_test) in aligned {
             let (target_align, query_align) = aligner
@@ -258,5 +305,50 @@ mod test_super {
             assert_eq!(query_align, query_align_test);
         }
         Ok(())
+    }
+
+    #[test]
+    fn test_next_after_back_gap_no_gap() {
+        let target = [1, 2, 3, 4, 5, 6, 7];
+        let query = [1, 2, 3, 11, 5, 6, 8];
+        let alignment = test_aligner().align(&target, &query);
+        assert_eq!(
+            alignment.common_path_iter().next_after_back_gap(),
+            Some((7, 8))
+        )
+    }
+
+    #[test]
+    fn test_next_after_back_gap() {
+        let target = [1, 2, 3, 4, 5, 6, 7];
+        let query = [2, 3, 4, 11];
+        let alignment = test_aligner().align(&target, &query);
+        assert_eq!(
+            alignment.common_path_iter().next_after_back_gap(),
+            Some((5, 11))
+        )
+    }
+
+    #[test]
+    fn test_common_path_iter() {
+        let target = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
+        let query = [4, 5, 6, 7, 8, 10, 11, 12, 13, 14];
+        let alignment = test_aligner().align(&target, &query);
+        assert_eq!(
+            alignment.common_path_iter().collect::<Vec<_>>(),
+            vec![
+                (14, 14),
+                (13, 13),
+                (12, 12),
+                (11, 11),
+                (10, 10),
+                (9, b'-'),
+                (8, 8),
+                (7, 7),
+                (6, 6),
+                (5, 5),
+                (4, 4),
+            ]
+        )
     }
 }
