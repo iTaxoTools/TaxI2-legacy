@@ -16,6 +16,14 @@ The possible scores are:
 * `match score`: Score for matching nucleotides
 * `mismatch score`: Score for non-matching nucleotides
 
+## Choosing the backend for calculating distances between sequences
+The file `data/options.tab` contains the line
+```
+distance_calculation<Tab>BACKEND
+```
+* If `BACKEND` is `Rust`, the distance calculation uses functions written in Rust for better performance. Requires that the Rust module is compiled (see below).
+* If `BACKEND` is `Python`, the distance calculation uses functions written in Python. Require Biopython.
+
 ## Compiling the Rust module
 
 TaxI2 included a module for calculating distances between sequences, which is written in Rust. It might need to be compiled before it can be used.
