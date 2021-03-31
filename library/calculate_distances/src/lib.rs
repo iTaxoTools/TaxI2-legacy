@@ -43,7 +43,6 @@ fn align_to_str(target: &str, query: &str) -> PyResult<(String, String)> {
 /// Returns 4 distances between `target` and `query`.
 ///
 /// Performs alignment.
-#[allow(clippy::unnecessary_wraps)]
 #[pyfunction]
 #[text_signature = "(aligner, target, query, /)"]
 fn seq_distances(aligner: Aligner, target: &str, query: &str) -> [f64; 4] {
@@ -60,12 +59,54 @@ fn seq_distances(aligner: Aligner, target: &str, query: &str) -> [f64; 4] {
     ]
 }
 
+// Returns true if the character is part of a meaningful part of a sequences
+fn is_nucleotide(c: char) -> bool {
+    !matches!(c, '-' | 'n' | 'N' | '?')
+}
+
+// Returns the inclusive boundaries of the common non-gap part of given sequences
+fn common_content(target: &str, query: &str) -> Option<(usize, usize)> {
+    let target_start = target.find(is_nucleotide)?;
+    let query_start = query.find(is_nucleotide)?;
+    let target_end = target.rfind(is_nucleotide)?;
+    let query_end = query.rfind(is_nucleotide)?;
+    let start = usize::max(target_start, query_start);
+    let end = usize::min(target_end, query_end);
+    Some((start, end))
+}
+
+/// Returns 4 distances between `target` and `query`.
+///
+/// Expects aligned sequences.
+#[pyfunction]
+#[text_signature = "(target, query, /)"]
+fn seq_distances_aligned(target: &str, query: &str) -> [f64; 4] {
+    let (start, end) = match common_content(target, query) {
+        None => return [f64::NAN; 4],
+        Some(x) => x,
+    };
+    let target = &target[start..=end];
+    let query = &query[start..=end];
+    let mut alignment_stats = AlignmentStats::new();
+    target
+        .bytes()
+        .zip(query.bytes())
+        .for_each(|pair| alignment_stats.update(pair));
+    [
+        alignment_stats.pdistance(),
+        alignment_stats.jukes_cantor_distance(),
+        alignment_stats.kimura2p_distance(),
+        alignment_stats.pdistance_counting_gaps(),
+    ]
+}
+
 /// A Python module implemented in Rust.
 #[pymodule]
 fn calculate_distances(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(align_to_str, m)?)?;
     m.add_function(wrap_pyfunction!(make_aligner, m)?)?;
     m.add_function(wrap_pyfunction!(seq_distances, m)?)?;
+    m.add_function(wrap_pyfunction!(seq_distances_aligned, m)?)?;
 
     Ok(())
 }
