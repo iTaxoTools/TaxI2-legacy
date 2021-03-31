@@ -2,18 +2,22 @@
 mod score;
 mod table;
 
+use pyo3::prelude::pyclass;
+
 use score::{Dir, Score};
 use std::string::FromUtf8Error;
 use table::Table;
 
 /// Contains parameters for the Needleman-Wunsch algorithm.
+#[pyclass]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Aligner {
-    match_score: i16,
-    mismatch_score: i16,
-    gap_penalty: i16,
-    gap_extend_penalty: i16,
-    end_gap_penalty: i16,
-    end_gap_extend_penalty: i16,
+    pub(super) match_score: i16,
+    pub(super) mismatch_score: i16,
+    pub(super) gap_penalty: i16,
+    pub(super) gap_extend_penalty: i16,
+    pub(super) end_gap_penalty: i16,
+    pub(super) end_gap_extend_penalty: i16,
 }
 
 impl Aligner {
