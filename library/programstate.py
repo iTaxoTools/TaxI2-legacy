@@ -1,7 +1,7 @@
 from typing import Union, TextIO, Iterator, Tuple, Any, Dict, Optional
 from library.fasta import Fastafile
 from library.genbank import GenbankFile
-from library.seq import PDISTANCE, NDISTANCES, seq_distances_ufunc, seq_distances_aligned_ufunc, make_aligner
+from library.seq import PDISTANCE, NDISTANCES, seq_distances_ufunc, seq_distances_aligned_ufunc, make_aligner, show_alignment
 from multiprocessing import Pool, cpu_count
 import tkinter as tk
 import pandas as pd
@@ -700,8 +700,7 @@ def print_alignments(sequences: pd.Series, alignment_file: TextIO) -> None:
     for (seqid_target, target) in sequences.items():
         for (seqid_query, query) in sequences.items():
             print(f"{seqid_target} <-> {seqid_query}", file=alignment_file)
-            alignment = aligner.align(target, query)[0]
-            print(alignment, file=alignment_file)
+            show_alignment(aligner, target, query, alignment_file)
 
 
 def table_closest(distance_table: pd.DataFrame) -> pd.DataFrame:

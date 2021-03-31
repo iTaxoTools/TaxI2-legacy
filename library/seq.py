@@ -1,4 +1,4 @@
-from typing import Tuple, Optional
+from typing import Tuple, Optional, TextIO, Any
 from Bio.Align import PairwiseAligner
 import os
 import sys
@@ -50,9 +50,18 @@ NDISTANCES = 4
 
 
 if BACKEND == "Rust":
-    from library.calculate_distances import make_aligner, seq_distances, seq_distances_aligned
-    aligner = make_aligner(MATCH_SCORE, MISMATCH_SCORE, END_GAP_PENALTY,
-                           END_GAP_EXTEND_PENALTY, GAP_PENALTY, GAP_EXTEND_PENALTY)
+    from library.calculate_distances import seq_distances, seq_distances_aligned
+    import library.calculate_distances as calc
+
+    def make_aligner() -> Any:
+        return calc.make_aligner(MATCH_SCORE, MISMATCH_SCORE, END_GAP_PENALTY,
+                                 END_GAP_EXTEND_PENALTY, GAP_PENALTY, GAP_EXTEND_PENALTY)
+
+    def show_alignment(aligner, target: str, query: str, file: TextIO) -> None:
+        print(calc.show_alignment(aligner, target, query), file=file)
+
+    aligner = make_aligner()
+
     seq_distances_ufunc: np.ufunc = np.frompyfunc(
         lambda target, query: seq_distances(aligner, target, query), 2, 1)
 
@@ -213,6 +222,10 @@ elif BACKEND == "Python":
                 return query_start - self._previous_query_end
             else:
                 return 0
+
+    def show_alignment(aligner, target: str, query: str, file: TextIO) -> None:
+        alignment = aligner.align(target, query)[0]
+        print(alignment, file=file)
 
     def seq_distances(target: str, query: str) -> np.array:
         """
