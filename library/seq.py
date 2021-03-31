@@ -50,7 +50,14 @@ NDISTANCES = 4
 
 
 if BACKEND == "Rust":
-    from library.calculate_distances import make_aligner, seq_distances
+    from library.calculate_distances import make_aligner, seq_distances, seq_distances_aligned
+    aligner = make_aligner(MATCH_SCORE, MISMATCH_SCORE, END_GAP_PENALTY,
+                           END_GAP_EXTEND_PENALTY, GAP_PENALTY, GAP_EXTEND_PENALTY)
+    seq_distances_ufunc: np.ufunc = np.frompyfunc(
+        lambda target, query: seq_distances(aligner, target, query), 2, 1)
+
+    seq_distances_aligned_ufunc: np.ufunc = np.frompyfunc(
+        seq_distances_aligned, 2, 1)
 elif BACKEND == "Python":
     def make_aligner() -> PairwiseAligner:
         aligner = PairwiseAligner(match_score=MATCH_SCORE, mismatch_score=MISMATCH_SCORE, end_open_gap_score=END_GAP_PENALTY,
@@ -227,40 +234,30 @@ elif BACKEND == "Python":
         del alignment
         return np.array([stats.pdistance(), stats.jukes_cantor_distance(), stats.kimura2p_distance(), stats.pdistance_counting_gaps()])
 
-else:
-    raise RuntimeError("Unexpected BACKEND")
+    def seq_distance_aligned(target: str, query: str) -> np.array:
+        """
+        Returns array of 4 floats representing various distance between sequences.
 
+        Index with constants to extract the distances:
+        PDISTANCE - pairwise uncorrected distance
+        JUKES_CANTOR - pairwise Jukes-Cantor distance
+        KIMURA_2P - pairwise Kimura-2-Parameter distance
+        PDISTANCE_GAPS - pairwise uncorrected distance including gaps
 
-def seq_distance_aligned(target: str, query: str) -> np.array:
-    """
-    Returns array of 4 floats representing various distance between sequences.
+        Expects aligned sequences
+        """
+        if not target or not query:
+            return np.full(4, np.nan)
+        seq_target = Seq(target)
+        seq_query = Seq(query)
+        alignment = Alignment.already_aligned(seq_target, seq_query)
+        stats = AlignmentStats()
+        stats.calculate(alignment, seq_target, seq_query)
+        return np.array([stats.pdistance(), stats.jukes_cantor_distance(), stats.kimura2p_distance(), stats.pdistance_counting_gaps()])
 
-    Index with constants to extract the distances:
-    PDISTANCE - pairwise uncorrected distance
-    JUKES_CANTOR - pairwise Jukes-Cantor distance
-    KIMURA_2P - pairwise Kimura-2-Parameter distance
-    PDISTANCE_GAPS - pairwise uncorrected distance including gaps
-
-    Expects aligned sequences
-    """
-    if not target or not query:
-        return np.full(4, np.nan)
-    seq_target = Seq(target)
-    seq_query = Seq(query)
-    alignment = Alignment.already_aligned(seq_target, seq_query)
-    stats = AlignmentStats()
-    stats.calculate(alignment, seq_target, seq_query)
-    return np.array([stats.pdistance(), stats.jukes_cantor_distance(), stats.kimura2p_distance(), stats.pdistance_counting_gaps()])
-
-
-if BACKEND == "Rust":
-    aligner = make_aligner(MATCH_SCORE, MISMATCH_SCORE, END_GAP_PENALTY,
-                           END_GAP_EXTEND_PENALTY, GAP_PENALTY, GAP_EXTEND_PENALTY)
-    seq_distances_ufunc: np.ufunc = np.frompyfunc(
-        lambda target, query: seq_distances(aligner, target, query), 2, 1)
-elif BACKEND == "Python":
     seq_distances_ufunc: np.ufunc = np.frompyfunc(seq_distances, 2, 1)
+    seq_distances_aligned_ufunc: np.ufunc = np.frompyfunc(
+        seq_distance_aligned, 2, 1)
+
 else:
     raise RuntimeError("Unexpected BACKEND")
-seq_distances_aligned_ufunc: np.ufunc = np.frompyfunc(
-    seq_distance_aligned, 2, 1)
