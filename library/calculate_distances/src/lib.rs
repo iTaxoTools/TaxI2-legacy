@@ -40,12 +40,22 @@ fn align_to_str(target: &str, query: &str) -> PyResult<(String, String)> {
         .map_err(exceptions::PyUnicodeEncodeError::new_err)
 }
 
+/// Returns two strings that represent aligned `target` and aligned `query` respectively.
+#[pyfunction]
+#[text_signature = "(aligner, target, query, /)"]
+fn show_alignment(aligner: &Aligner, target: &str, query: &str) -> PyResult<String> {
+    aligner
+        .align(target.as_bytes(), query.as_bytes())
+        .show_alignment()
+        .map_err(exceptions::PyUnicodeEncodeError::new_err)
+}
+
 /// Returns 4 distances between `target` and `query`.
 ///
 /// Performs alignment.
 #[pyfunction]
 #[text_signature = "(aligner, target, query, /)"]
-fn seq_distances(aligner: Aligner, target: &str, query: &str) -> [f64; 4] {
+fn seq_distances(aligner: &Aligner, target: &str, query: &str) -> [f64; 4] {
     let alignment = aligner.align(target.as_bytes(), query.as_bytes());
     let mut alignment_stats = AlignmentStats::new();
     alignment
@@ -107,6 +117,7 @@ fn calculate_distances(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(make_aligner, m)?)?;
     m.add_function(wrap_pyfunction!(seq_distances, m)?)?;
     m.add_function(wrap_pyfunction!(seq_distances_aligned, m)?)?;
+    m.add_function(wrap_pyfunction!(show_alignment, m)?)?;
 
     Ok(())
 }

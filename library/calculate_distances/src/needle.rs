@@ -169,6 +169,44 @@ impl<'target, 'query> Alignment<'target, 'query> {
             String::from_utf8(query_align)?,
         ))
     }
+
+    /// Returns a string showing alignment in the same way as Biopython
+    /// # Errors
+    /// Returns [Err] if invalid UTF-8 has been constructed
+    pub fn show_alignment(&self) -> Result<String, FromUtf8Error> {
+        // Allocate space for the result
+        let (mut target_align, mut correspondence, mut query_align) = {
+            let len = self.target.len().max(self.query.len());
+            (
+                Vec::with_capacity(len),
+                Vec::with_capacity(len),
+                Vec::with_capacity(len),
+            )
+        };
+        // Collect the symbols
+        for (target_c, query_c) in self.iter() {
+            target_align.push(target_c);
+            query_align.push(query_c);
+            let correspondence_c = match (target_c, query_c) {
+                (b'-', _) => b'-',
+                (_, b'-') => b'-',
+                _ if target_c == query_c => b'|',
+                _ => b'.',
+            };
+            correspondence.push(correspondence_c);
+        }
+
+        // Reverse the result, since the iteration was backwards
+        target_align.reverse();
+        correspondence.reverse();
+        query_align.reverse();
+
+        Ok(String::from_utf8(target_align)?
+            + "\n"
+            + &String::from_utf8(correspondence)?
+            + "\n"
+            + &String::from_utf8(query_align)?)
+    }
 }
 
 /// Iterator over the alignment path
