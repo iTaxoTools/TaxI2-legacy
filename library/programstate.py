@@ -191,7 +191,7 @@ class ProgramState():
             raise ValueError(
                 "'Already aligned' option is not allowed for the Genbank format.")
         table = self.input_format.load_table(input_file)
-        species_analysis = "species" in table.columns
+        self.species_analysis = "species" in table.columns
         table.set_index("seqid", inplace=True)
         if not self.already_aligned.get():
             table["sequence"] = normalize_sequences(table["sequence"])
@@ -207,7 +207,7 @@ class ProgramState():
 
         distance_table = make_distance_table(
             table, self.already_aligned.get())
-        if species_analysis:
+        if self.species_analysis:
             species_table = pd.DataFrame(table["species"])
         else:
             species_table = None
@@ -243,7 +243,7 @@ class ProgramState():
             self.cluster_analysis(distance_table, species_table, os.path.basename(input_file))
             self.show_progress("Cluster analysis")
 
-        if species_analysis:
+        if self.species_analysis:
             # The matrix of distances between seqids (order by species)
             for kind in (kind for kind in range(NDISTANCES) if self.distance_options[kind].get()):
                 kind_name = distances_short_names[kind]
