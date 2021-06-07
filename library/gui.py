@@ -210,11 +210,16 @@ class TaxiGUI(ttk.Frame):
                     self.show_progress("Starting plotting")
                     Plot(plot_input, output_dir, distance_name)
                     self.show_progress("Plotting complete")
-            self.clear_command()
             self.fill_file_list()
             tkmessagebox.showinfo("Done", "Calculation complete.")
 
     def clear_command(self) -> None:
+        for file in os.scandir(self.preview_dir):
+            if file.is_file():
+                os.unlink(file)
+        for file in os.scandir(os.path.join(self.preview_dir, "graph_previews")):
+            if file.is_file():
+                os.unlink(file)
         self.filelist.delete(*self.filelist.get_children())
         self.preview.delete("1.0", "end")
         self.preview_frame.configure(text="Preview")
