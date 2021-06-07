@@ -77,6 +77,7 @@ class Plot:
         self.mult_hist_without_genus()
         self.stack_hist_without_genus()
         self.dodge_hist_without_genus()
+        plt.close("all")
         self.calculations()
 
     def mult_hist(self):
